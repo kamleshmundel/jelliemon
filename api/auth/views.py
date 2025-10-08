@@ -84,10 +84,71 @@ def login_with_email(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_with_mobile(request):
-    return Response(
-        {"message": "registered successfully!"},
-        status=status.HTTP_201_CREATED
-    )
+    mobile = request.data.get('mobile')
+
+    if not mobile:
+        return Response({"error": "Mobile number is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get or create user by mobile number
+    user, created = AppUser.objects.get_or_create(phone=mobile)
+    
+    # Generate OTP and save
+    otp = generate_otp()
+    user.otp = otp
+    user.is_verified = False  # Mark unverified on new login attempt
+    user.save()
+
+    # TODO: send OTP via SMS here; for now just print
+    print(f"Sending OTP to {mobile}: {otp}")
+
+    return Response({"message": "OTP sent to your mobile number."}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_mobile_otp(request):
+    mobile = request.data.get('mobile')
+    otp = request.data.get('otp')
+
+    if not mobile or not otp:
+        return Response({"error": "Mobile and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = AppUser.objects.get(phone=mobile)
+    except AppUser.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if int(user.otp) != otp:
+        return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Mark user as verified
+    user.is_verified = True
+    user.otp = ''  # clear OTP after verification
+    user.save()
+
+    # Generate JWT token
+    payload = {
+        'user_id': str(user.id),
+        'phone': user.phone,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.utcnow(),
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+
+    # Save token in user record
+    user.token = token
+    user.save()
+
+    serializer = AppUserSerializer(user)
+    return Response({
+        "message": "Mobile login successful.",
+        "data": {
+            "token": token,
+            "user": serializer.data
+        },
+        "status": status.HTTP_200_OK
+    }, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
