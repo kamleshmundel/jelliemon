@@ -122,3 +122,37 @@ def auth_handler(request):
                 return api_response(AppUserSerializer(u).data, "Mobile verified successfully.", 200)
 
     return api_response(None, "Invalid request.", 400)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forget_password(request):
+    step = request.data.get('step', 'send_otp')
+    email = request.data.get('email')
+    otp = request.data.get('otp')
+    password = request.data.get('password')
+    confirm_password = request.data.get('confirm_password')
+
+    if not email: return api_response(None, "Email is required.", 400)
+    try: user = AppUser.objects.get(email=email)
+    except AppUser.DoesNotExist: return api_response(None, "User not found.", 404)
+
+    if step == 'send_otp':
+        user.otp = generate_otp()
+        user.save()
+        print(f"Sending OTP to {email}: {user.otp}")  # replace with email send logic
+        return api_response(None, "OTP sent to your email.", 200)
+
+    if step == 'verify_otp':
+        if not otp: return api_response(None, "OTP is required.", 400)
+        if str(user.otp) != str(otp): return api_response(None, "Invalid OTP.", 400)
+        return api_response(None, "OTP verified successfully.", 200)
+
+    if step == 'set_password':
+        if not all([password, confirm_password]): return api_response(None, "Password and confirm password required.", 400)
+        if password != confirm_password: return api_response(None, "Passwords do not match.", 400)
+        user.password = make_password(password)
+        user.otp = ''
+        user.save()
+        return api_response(AppUserSerializer(user).data, "Password reset successfully.", 200)
+
+    return api_response(None, "Invalid request.", 400)
