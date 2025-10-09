@@ -3,21 +3,48 @@ from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-class AppUser(models.Model):
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+
+class AppUserManager(BaseUserManager):
+    def create_user(self, email=None, phone=None, password=None, **extra_fields):
+        if not email and not phone:
+            raise ValueError('Either email or phone must be set')
+        if email:
+            email = self.normalize_email(email)
+        user = self.model(email=email, phone=phone, **extra_fields)
+        if password:
+            user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email=None, phone=None, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(email, phone, password, **extra_fields)
+
+class AppUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True, null=True, blank=True)
     phone = models.CharField(max_length=15, unique=True, null=True, blank=True)
     name = models.CharField(max_length=255)
     user_class = models.CharField(max_length=50, null=True, blank=True, db_column='class')
     language = models.CharField(max_length=50, null=True, blank=True)
-    token = models.CharField(max_length=255, null=True, blank=True)
+    token = models.TextField(null=True, blank=True)
     otp = models.CharField(max_length=10, null=True, blank=True)
     current_step = models.IntegerField(default=0)
     is_verified = models.BooleanField(default=False)
     password = models.CharField(max_length=128, null=True, blank=True)
     role = models.PositiveSmallIntegerField(default=0)  # 0=user, 1=admin
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    last_login = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = AppUserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
 
     class Meta:
         db_table = 'app_user'

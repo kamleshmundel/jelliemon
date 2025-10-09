@@ -7,6 +7,8 @@ from base.serializers import AppUserSerializer
 from config.resp_middle import api_response
 import jwt, datetime, random
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 
 def generate_otp(): return str(random.randint(1000, 9999))
 
@@ -14,14 +16,58 @@ def generate_otp(): return str(random.randint(1000, 9999))
 @permission_classes([AllowAny])
 def admin_login(request):
     email, password = request.data.get('email'), request.data.get('password')
-    if not email or not password: return api_response(None, "Email and password required.", 400)
-    try: user = AppUser.objects.get(email=email, role=1)
-    except AppUser.DoesNotExist: return api_response(None, "Invalid credentials.", 401)
-    if not check_password(password, user.password): return api_response(None, "Invalid credentials.", 401)
-    payload = {'user_id': str(user.id), 'email': user.email, 'role': user.role, 'exp': datetime.datetime.utcnow()+datetime.timedelta(hours=24)}
-    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-    user.token = token; user.save()
-    return api_response({"token": token, "user": AppUserSerializer(user).data}, "Login successful.", 200)
+    if not email or not password:
+        return api_response(None, "Email and password required.", 400)
+
+    try:
+        user = AppUser.objects.get(email=email, role=1)
+    except AppUser.DoesNotExist:
+        return api_response(None, "Invalid credentials.", 401)
+
+    if not check_password(password, user.password):
+        return api_response(None, "Invalid credentials.", 401)
+
+    # Invalidate old refresh token
+    user.token = None
+
+    # Create new access token
+    access_payload = {
+        'user_id': str(user.id),
+        'role': user.role,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+    }
+    access_token = jwt.encode(access_payload, settings.SECRET_KEY, algorithm='HS256')
+
+    # Create refresh token
+    refresh_payload = {
+        'user_id': str(user.id),
+        'role': user.role,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+    }
+    refresh_token = jwt.encode(refresh_payload, settings.SECRET_KEY, algorithm='HS256')
+
+    # Save refresh token in DB
+    user.token = refresh_token
+    user.save()
+
+    return api_response({
+        "access": access_token,
+        "refresh": refresh_token,
+        "user": AppUserSerializer(user).data
+    }, "Login successful.", 200)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    try:
+        token = RefreshToken(request.data.get('refresh'))
+        token.blacklist()
+        request.user.token = None
+        request.user.save()
+        return api_response(None, "Logged out successfully.", 200)
+    except:
+        return api_response(None, "Invalid token.", 400)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
