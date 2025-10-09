@@ -3,3 +3,5 @@ venv
 .env
 google.html
 facebook.html
+
+__pycache__/
