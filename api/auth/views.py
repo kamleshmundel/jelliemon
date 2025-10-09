@@ -6,16 +6,50 @@ from django.conf import settings
 from base.models import AppUser
 from base.serializers import AppUserSerializer
 from rest_framework import status
-import random, jwt, datetime
-from rest_framework.response import Response
 from config.resp_middle import api_response
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import random, jwt, datetime
+from facebook import GraphAPI
 
 def generate_otp(): return str(random.randint(1000, 9999))
+
+def handle_google_auth(token):
+    if not token: return api_response(None, "Google token required.", 400)
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
+        email, name = idinfo.get('email'), idinfo.get('name', '')
+        if not email: return api_response(None, "Invalid Google token.", 400)
+        u, _ = AppUser.objects.get_or_create(email=email, defaults={'is_verified': True, 'name': name})
+        payload = {'user_id': str(u.id), 'email': u.email, 'exp': datetime.datetime.utcnow()+datetime.timedelta(hours=24), 'iat': datetime.datetime.utcnow()}
+        jwt_token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        u.token = jwt_token; u.save()
+        return api_response({"token": jwt_token, "user": AppUserSerializer(u).data}, "Google authentication successful.", 200)
+    except ValueError:
+        return api_response(None, "Invalid or expired Google token.", 400)
+    
+def handle_facebook_auth(token):
+    if not token: return api_response(None, "Facebook token required.", 400)
+    try:
+        graph = GraphAPI(access_token=token)
+        profile = graph.get_object('me', fields='id,name,email')
+        email, name = profile.get('email'), profile.get('name', '')
+        if not email: return api_response(None, "Facebook token missing email.", 400)
+        u, _ = AppUser.objects.get_or_create(email=email, defaults={'is_verified': True, 'name': name})
+        payload = {'user_id': str(u.id), 'email': u.email, 'exp': datetime.datetime.utcnow()+datetime.timedelta(hours=24), 'iat': datetime.datetime.utcnow()}
+        jwt_token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        u.token = jwt_token; u.save()
+        return api_response({"token": jwt_token, "user": AppUserSerializer(u).data}, "Facebook login successful.", 200)
+    except Exception as e:
+        return api_response(None, "Invalid or expired Facebook token.", 400)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def auth_handler(request):
     action, mode = request.data.get('action'), request.data.get('mode')
+    if mode == 'google': return handle_google_auth(request.data.get('token'))
+    if mode == 'facebook': return handle_facebook_auth(request.data.get('token'))
+
     if action == 'login':
         if mode == 'email':
             email, password = request.data.get('email'), request.data.get('password')
@@ -45,6 +79,7 @@ def auth_handler(request):
                 token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
                 u.token = token; u.save()
                 return api_response({"token": token, "user": AppUserSerializer(u).data}, "Mobile login successful.", 200)
+
     if action == 'signup':
         if mode == 'email':
             step, email, otp = request.data.get('step', 'send_otp'), request.data.get('email'), request.data.get('otp')
@@ -85,4 +120,5 @@ def auth_handler(request):
                 if str(u.otp) != str(otp): return api_response(None, "Invalid OTP.", 400)
                 u.is_verified, u.otp = True, ''; u.save()
                 return api_response(AppUserSerializer(u).data, "Mobile verified successfully.", 200)
+
     return api_response(None, "Invalid request.", 400)
