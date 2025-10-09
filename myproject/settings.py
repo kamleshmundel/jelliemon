@@ -89,6 +89,7 @@ DATABASES = {
 }
 
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+FB_APP_SECRET = config('FB_APP_SECRET', default='')
 
 
 # Password validation
