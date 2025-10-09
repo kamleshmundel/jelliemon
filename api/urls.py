@@ -3,5 +3,5 @@ from . import views
 
 urlpatterns = [
   path('', views.getData),
-  path('auth/', include('api.auth.urls'))
+  path('auth', include('api.auth.urls'))
 ]
