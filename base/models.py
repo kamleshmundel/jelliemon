@@ -15,6 +15,7 @@ class AppUser(models.Model):
     current_step = models.IntegerField(default=0)
     is_verified = models.BooleanField(default=False)
     password = models.CharField(max_length=128, null=True, blank=True)
+    role = models.PositiveSmallIntegerField(default=0)  # 0=user, 1=admin
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
