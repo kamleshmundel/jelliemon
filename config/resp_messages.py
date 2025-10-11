@@ -34,6 +34,7 @@ class UserMessages:
     GOOGLE_AUTH_SUCCESS = "Google authentication successful."
     FACEBOOK_AUTH_SUCCESS = "Facebook login successful."
     PASSWORD_RESET_SUCCESS = "Password reset successfully."
+    INVALID_OTP = "Invalid OTP."
 
 class RM:
     common = CommonMessages

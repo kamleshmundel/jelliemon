@@ -12,21 +12,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import AuthenticationFailed
 from config.resp_messages import RM
 from config.helpers import generate_otp
+from .decorators import require_fields, ensure_admin_exists, verify_admin_password, validate_forget_password_fields
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@require_fields(['email', 'password'])
+@ensure_admin_exists
+@verify_admin_password
 def admin_login(request):
-    email, password = request.data.get('email'), request.data.get('password')
-    if not email or not password:
-        return api_response(None, RM.common.EMAIL_PASSWORD_REQUIRED, 400)
-
-    try:
-        user = AppUser.objects.get(email=email, role=1)
-    except AppUser.DoesNotExist:
-        return api_response(None, RM.common.INVALID_CREDENTIALS, 401)
-
-    if not check_password(password, user.password):
-        return api_response(None, RM.common.INVALID_CREDENTIALS, 401)
+    user = request.user_obj
 
     # Invalidate old refresh token
     user.token = None
@@ -90,22 +84,21 @@ def logout(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@validate_forget_password_fields
+@ensure_admin_exists
 def admin_forget_password(request):
-    step = request.data.get('step', 'send_otp')
-    email, otp, password, confirm = request.data.get('email'), request.data.get('otp'), request.data.get('password'), request.data.get('confirm_password')
-    if not email: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-    try: user = AppUser.objects.get(email=email, role=1)
-    except AppUser.DoesNotExist: return api_response(None, RM.admin.ADMIN_NOT_FOUND, 404)
+    user, data = request.admin_user, request.data
+    step = data.get('step', 'send_otp')
 
     if step == 'send_otp':
         user.otp = generate_otp(); user.save()
-        print(f"Sending OTP to {email}: {user.otp}")
+        print(f"Sending OTP to {user.email}: {user.otp}")
         return api_response(None, RM.admin.OTP_SENT, 200)
     if step == 'verify_otp':
-        if str(user.otp) != str(otp): return api_response(None, RM.admin.INVALID_OTP, 400)
+        if str(user.otp) != str(data.get('otp')): return api_response(None, RM.admin.INVALID_OTP, 400)
         return api_response(None, RM.admin.OTP_VERIFIED, 200)
     if step == 'set_password':
-        if not all([password, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+        password, confirm = data.get('password'), data.get('confirm_password')
         if password != confirm: return api_response(None, RM.common.PASSWORD_MISMATCH, 400)
         user.password = make_password(password); user.otp = ''; user.save()
         return api_response(AppUserSerializer(user).data, RM.admin.PASSWORD_RESET_SUCCESS, 200)

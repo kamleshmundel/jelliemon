@@ -148,4 +148,6 @@ def forget_password(request):
     if step == 'set_password':
         if not all([pwd, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         if pwd != confirm: return api_response(None, RM.common.PASSWORD_MISMATCH, 400)
-        u
+        u.password = make_password(pwd); u.otp = ''; u.save()
+        return api_response(generate_tokens(u), RM.user.PASSWORD_RESET_SUCCESS, 200)
+    return api_response(None, RM.common.INVALID_STEP, 400)

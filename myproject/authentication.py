@@ -16,6 +16,7 @@ class CustomJWTAuthentication(BaseAuthentication):
                 raise AuthenticationFailed('Invalid token header')
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
             user = AppUser.objects.get(id=payload['user_id'])
+            request.user = user
             return (user, None)
         except (jwt.ExpiredSignatureError, jwt.DecodeError, AppUser.DoesNotExist):
             raise AuthenticationFailed('Invalid or expired token')
