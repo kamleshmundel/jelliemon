@@ -1,7 +1,6 @@
 .qodo
 venv
 .env
-google.html
-facebook.html
+social-auth.html
 
 __pycache__/
