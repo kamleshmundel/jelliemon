@@ -20,7 +20,7 @@ from .decorators import require_fields, ensure_admin_exists, verify_admin_passwo
 @ensure_admin_exists
 @verify_admin_password
 def admin_login(request):
-    user = request.user_obj
+    user = request.admin_user
 
     # Invalidate old refresh token
     user.token = None

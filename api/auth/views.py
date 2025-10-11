@@ -1,6 +1,6 @@
 # api/user_auth/views.py
 from django.urls import path
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth.hashers import make_password, check_password
 from django.conf import settings
@@ -15,6 +15,7 @@ from myproject.utils import create_access_token, create_refresh_token
 from config.resp_messages import RM
 import random, jwt, datetime
 from config.helpers import generate_otp
+from myproject.permissions import IsNormalUser
 
 def generate_tokens(u):
     data = {'user_id': str(u.id), 'role': u.role}
@@ -151,3 +152,13 @@ def forget_password(request):
         u.password = make_password(pwd); u.otp = ''; u.save()
         return api_response(generate_tokens(u), RM.user.PASSWORD_RESET_SUCCESS, 200)
     return api_response(None, RM.common.INVALID_STEP, 400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsNormalUser])
+def delete_account(request):
+    try:
+        user = AppUser.objects.get(id=request.user.id)
+        user.delete()
+        return api_response(None, "Account deleted successfully", 200)
+    except AppUser.DoesNotExist:
+        return api_response(None, "User not found", 404)
