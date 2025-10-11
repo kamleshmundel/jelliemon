@@ -9,6 +9,7 @@ import jwt, datetime, random
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import AuthenticationFailed
 
 def generate_otp(): return str(random.randint(1000, 9999))
 
@@ -34,7 +35,7 @@ def admin_login(request):
     access_payload = {
         'user_id': str(user.id),
         'role': user.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=5)
     }
     access_token = jwt.encode(access_payload, settings.SECRET_KEY, algorithm='HS256')
 
@@ -42,7 +43,7 @@ def admin_login(request):
     refresh_payload = {
         'user_id': str(user.id),
         'role': user.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30)
     }
     refresh_token = jwt.encode(refresh_payload, settings.SECRET_KEY, algorithm='HS256')
 
@@ -55,6 +56,24 @@ def admin_login(request):
         "refresh": refresh_token,
         "user": AppUserSerializer(user).data
     }, "Login successful.", 200)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def refresh_token(request):
+    token = request.data.get('refresh')
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        user = AppUser.objects.get(id=payload['user_id'], token=token)
+    except (jwt.ExpiredSignatureError, jwt.DecodeError, AppUser.DoesNotExist):
+        raise AuthenticationFailed('Invalid or expired refresh token')
+
+    new_access_payload = {
+        'user_id': str(user.id),
+        'role': user.role,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+    }
+    new_access_token = jwt.encode(new_access_payload, settings.SECRET_KEY, algorithm='HS256')
+    return api_response({'access': new_access_token}, "Token refreshed.", 200)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

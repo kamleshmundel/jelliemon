@@ -16,7 +16,7 @@ def test_auth(request):
 
 @api_view(['GET'])
 # @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated, IsNormalUser])
+@permission_classes([IsAuthenticated, IsAdmin])
 def test_admin(request):
     return Response({"username": request.user.email, "role": "Admin", "message": "Admin access granted!"})
 
