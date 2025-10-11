@@ -159,6 +159,6 @@ def delete_account(request):
     try:
         user = AppUser.objects.get(id=request.user.id)
         user.delete()
-        return api_response(None, "Account deleted successfully", 200)
+        return api_response(None, RM.user.ACC_DELETED, 200)
     except AppUser.DoesNotExist:
-        return api_response(None, "User not found", 404)
+        return api_response(None, RM.common.NOT_FOUND, 404)
