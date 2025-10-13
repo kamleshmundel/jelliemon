@@ -11,17 +11,13 @@ from config.resp_middle import api_response
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from facebook import GraphAPI
-from myproject.utils import create_access_token, create_refresh_token
+from myproject.utils import create_access_token, generate_tokens
 from config.resp_messages import RM
 import random, jwt, datetime
 from config.helpers import generate_otp
+from config.conatants import ROLES
 from myproject.permissions import IsNormalUser
-
-def generate_tokens(u):
-    data = {'user_id': str(u.id), 'role': u.role}
-    access, refresh = create_access_token(data), create_refresh_token(data)
-    u.token = refresh; u.save()
-    return {"access": access, "refresh": refresh, "user": AppUserSerializer(u).data}
+from django.utils import timezone
 
 def handle_google_auth(token):
     if not token: return api_response(None, RM.user.GOOGLE_AUTH_SUCCESS, 400)
@@ -30,7 +26,7 @@ def handle_google_auth(token):
         email, name = info.get('email'), info.get('name', '')
         if not email: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         u, _ = AppUser.objects.get_or_create(email=email, defaults={'is_verified': True, 'name': name})
-        return api_response(generate_tokens(u), RM.user.GOOGLE_AUTH_SUCCESS, 200)
+        return api_response(generate_tokens(u, AppUserSerializer), RM.user.GOOGLE_AUTH_SUCCESS, 200)
     except Exception:
         return api_response(None, RM.common.INVALID_REFRESH_TOKEN, 400)
 
@@ -42,7 +38,7 @@ def handle_facebook_auth(token):
         email, name = p.get('email'), p.get('name', '')
         if not email: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         u, _ = AppUser.objects.get_or_create(email=email, defaults={'is_verified': True, 'name': name})
-        return api_response(generate_tokens(u), RM.user.FACEBOOK_AUTH_SUCCESS, 200)
+        return api_response(generate_tokens(u, AppUserSerializer), RM.user.FACEBOOK_AUTH_SUCCESS, 200)
     except Exception:
         return api_response(None, RM.common.INVALID_REFRESH_TOKEN, 400)
 
@@ -59,7 +55,7 @@ def auth_handler(request):
         try: u = AppUser.objects.get(email=email)
         except AppUser.DoesNotExist: return api_response(None, RM.common.INVALID_CREDENTIALS, 401)
         if not u.is_verified or not check_password(pwd, u.password): return api_response(None, RM.common.INVALID_CREDENTIALS, 401)
-        return api_response(generate_tokens(u), RM.user.LOGIN_SUCCESS, 200)
+        return api_response(generate_tokens(u, AppUserSerializer), RM.user.LOGIN_SUCCESS, 200)
 
     if action == 'login' and mode == 'mobile':
         step, mobile, otp = request.data.get('step', 'send_otp'), request.data.get('mobile'), request.data.get('otp')
@@ -74,7 +70,7 @@ def auth_handler(request):
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
             if str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
             u.is_verified, u.otp = True, ''; u.save()
-            return api_response(generate_tokens(u), RM.user.MOBILE_LOGIN_SUCCESS, 200)
+            return api_response(generate_tokens(u, AppUserSerializer), RM.user.MOBILE_LOGIN_SUCCESS, 200)
 
     if action == 'signup' and mode == 'email':
         step, email, otp = request.data.get('step', 'send_otp'), request.data.get('email'), request.data.get('otp')
@@ -99,7 +95,7 @@ def auth_handler(request):
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
             if not u.is_verified: return api_response(None, RM.common.EMAIL_NOT_VERIFIED, 403)
             u.password = make_password(pwd); u.save()
-            return api_response(generate_tokens(u), RM.user.PASSWORD_SET_SUCCESS, 200)
+            return api_response(generate_tokens(u, AppUserSerializer), RM.user.PASSWORD_SET_SUCCESS, 200)
 
     if action == 'signup' and mode == 'mobile':
         step, mobile, otp = request.data.get('step', 'send_otp'), request.data.get('mobile'), request.data.get('otp')
@@ -114,7 +110,16 @@ def auth_handler(request):
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
             if str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
             u.is_verified, u.otp = True, ''; u.save()
-            return api_response(generate_tokens(u), RM.user.MOBILE_VERIFIED, 200)
+            return api_response(generate_tokens(u, AppUserSerializer), RM.user.MOBILE_VERIFIED, 200)    
+    if action == 'logout':
+        try:
+            user = AppUser.objects.get(id=request.user.id, role=ROLES.USER)
+            user.token = None
+            user.last_logout_at = timezone.now()
+            user.save()
+            return api_response(None, RM.admin.LOGOUT_SUCCESS, 200)
+        except AppUser.DoesNotExist:
+            return api_response(None, RM.admin.ADMIN_NOT_FOUND, 404)
 
     return api_response(None, RM.common.INVALID_REQUEST, 400)
 
@@ -150,7 +155,7 @@ def forget_password(request):
         if not all([pwd, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         if pwd != confirm: return api_response(None, RM.common.PASSWORD_MISMATCH, 400)
         u.password = make_password(pwd); u.otp = ''; u.save()
-        return api_response(generate_tokens(u), RM.user.PASSWORD_RESET_SUCCESS, 200)
+        return api_response(generate_tokens(u, AppUserSerializer), RM.user.PASSWORD_RESET_SUCCESS, 200)
     return api_response(None, RM.common.INVALID_STEP, 400)
 
 @api_view(['DELETE'])
@@ -159,6 +164,6 @@ def delete_account(request):
     try:
         user = AppUser.objects.get(id=request.user.id)
         user.delete()
-        return api_response(None, "Account deleted successfully", 200)
+        return api_response(None, RM.user.ACC_DELETED, 200)
     except AppUser.DoesNotExist:
-        return api_response(None, "User not found", 404)
+        return api_response(None, RM.common.NOT_FOUND, 404)

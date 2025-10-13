@@ -12,6 +12,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import AuthenticationFailed
 from config.resp_messages import RM
 from config.helpers import generate_otp
+from myproject.utils import generate_tokens
+from django.utils import timezone
+from myproject.permissions import IsAdmin
+from config.conatants import ROLES
 from .decorators import require_fields, ensure_admin_exists, verify_admin_password, validate_forget_password_fields
 
 @api_view(['POST'])
@@ -25,21 +29,8 @@ def admin_login(request):
     # Invalidate old refresh token
     user.token = None
 
-    # Create new access token
-    access_payload = {
-        'user_id': str(user.id),
-        'role': user.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=5)
-    }
-    access_token = jwt.encode(access_payload, settings.SECRET_KEY, algorithm='HS256')
-
-    # Create refresh token
-    refresh_payload = {
-        'user_id': str(user.id),
-        'role': user.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30)
-    }
-    refresh_token = jwt.encode(refresh_payload, settings.SECRET_KEY, algorithm='HS256')
+    tdata = generate_tokens(user, AppUserSerializer)
+    access_token, refresh_token, loggedin_user = tdata['access'], tdata['refresh'], tdata['user']
 
     # Save refresh token in DB
     user.token = refresh_token
@@ -48,7 +39,7 @@ def admin_login(request):
     return api_response({
         "access": access_token,
         "refresh": refresh_token,
-        "user": AppUserSerializer(user).data
+        "user": loggedin_user
     }, RM.admin.LOGIN_SUCCESS, 200)
 
 @api_view(['POST'])
@@ -70,17 +61,17 @@ def refresh_token(request):
     return api_response({'access': new_access_token}, RM.admin.TOKEN_REFRESSHED, 200)
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def logout(request):
+@permission_classes([IsAuthenticated, IsAdmin])
+@ensure_admin_exists
+def admin_logout(request):
     try:
-        token = RefreshToken(request.data.get('refresh'))
-        token.blacklist()
-        request.user.token = None
-        request.user.save()
-        return api_response(None, "Logged out successfully.", 200)
-    except:
-        return api_response(None, "Invalid token.", 400)
-
+        user = AppUser.objects.get(id=request.user.id, role=ROLES.ADMIN)
+        user.token = None
+        user.last_logout_at = timezone.now()
+        user.save()
+        return api_response(None, RM.admin.LOGOUT_SUCCESS, 200)
+    except AppUser.DoesNotExist:
+        return api_response(None, RM.admin.ADMIN_NOT_FOUND, 404)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

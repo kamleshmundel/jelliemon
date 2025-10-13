@@ -35,6 +35,7 @@ class UserMessages:
     FACEBOOK_AUTH_SUCCESS = "Facebook login successful."
     PASSWORD_RESET_SUCCESS = "Password reset successfully."
     INVALID_OTP = "Invalid OTP."
+    ACC_DELETED = "Account deleted successfully"
 
 class RM:
     common = CommonMessages
