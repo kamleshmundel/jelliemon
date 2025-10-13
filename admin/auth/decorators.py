@@ -3,6 +3,7 @@ from django.contrib.auth.hashers import check_password
 from config.resp_middle import api_response
 from config.resp_messages import RM
 from base.models import AppUser
+from config.conatants import ROLES
 
 def require_fields(fields):
     def decorator(view_func):
@@ -19,9 +20,9 @@ def require_fields(fields):
 def ensure_admin_exists(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        email = request.data.get('email')
+        email = request.data.get('email') or getattr(request.user, 'email', None)
         try:
-            user = AppUser.objects.get(email=email, role=1)
+            user = AppUser.objects.get(email=email, role=ROLES.ADMIN)
         except AppUser.DoesNotExist:
             return api_response(None, RM.admin.ADMIN_NOT_FOUND, 404)
         request.admin_user = user
