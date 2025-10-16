@@ -56,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'config.translate_middleware.TranslateResponseMiddleware',
 ]
 
 ROOT_URLCONF = 'myproject.urls'
@@ -178,3 +179,4 @@ CORS_ALLOW_CREDENTIALS = True
 
 AUTH_USER_MODEL = 'base.AppUser'
 
+DEFAULT_LANGUAGE = config('DEFAULT_LANGUAGE', default='en')
