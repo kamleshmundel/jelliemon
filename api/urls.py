@@ -5,5 +5,6 @@ urlpatterns = [
   path('', views.getData),
   path('/auth', include('api.auth.urls')),
   path('/profile', include('api.profile.urls')),
+  path('/common', include('api.common.urls')),
   path('/test', views.getData),
 ]
