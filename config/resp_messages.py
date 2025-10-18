@@ -19,6 +19,7 @@ class CommonMessages:
     INVALID_TOKEN = "Invalid token."
     EMAIL_PASSWORD_REQUIRED = "Email and password required."
     INVALID_STEP = "Invalid step."
+    SUCCESS = "Success"
 
 class AdminMessages:
     ADMIN_NOT_FOUND = "Admin not found."
@@ -42,7 +43,8 @@ class UserMessages:
     FACEBOOK_AUTH_SUCCESS = "Facebook login successful."
     PASSWORD_RESET_SUCCESS = "Password reset successfully."
     INVALID_OTP = "Invalid OTP."
-    ACC_DELETED = "Account deleted successfully"
+    ACC_DELETED = "Account deleted successfully."
+    PROFILE_UPDATED = "Profile updated successfully."
 
 class RM:
     common = CommonMessages
