@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Badge',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=255)),
                 ('art_url', models.URLField(blank=True, null=True)),
                 ('criteria_json', models.JSONField(blank=True, null=True)),
@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Product',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('title', models.CharField(max_length=255)),
                 ('image_url', models.URLField(blank=True, null=True)),
                 ('external_url', models.URLField()),
@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Subject',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('board', models.CharField(max_length=100)),
                 ('subject_class', models.CharField(db_column='class', max_length=50)),
                 ('name', models.CharField(max_length=255)),
@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Unit',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('title', models.CharField(max_length=255)),
                 ('sort_order', models.IntegerField(default=0)),
                 ('subject', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='units', to='base.subject')),
@@ -89,7 +89,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Lesson',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('title', models.CharField(max_length=255)),
                 ('sort_order', models.IntegerField(default=0)),
                 ('status', models.CharField(choices=[('draft', 'Draft'), ('published', 'Published'), ('archived', 'Archived')], default='draft', max_length=20)),
@@ -118,7 +118,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Question',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('stem', models.TextField()),
                 ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('normal', 'Normal'), ('hard', 'Hard')], default='normal', max_length=20)),
                 ('options', models.JSONField()),

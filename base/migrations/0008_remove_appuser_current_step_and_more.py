@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='UserInfo',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('school', models.CharField(blank=True, max_length=255, null=True)),
                 ('board', models.CharField(blank=True, max_length=255, null=True)),
                 ('user_class', models.CharField(blank=True, db_column='class', max_length=50, null=True)),
@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='UserState',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('token', models.TextField(blank=True, null=True)),
                 ('otp', models.IntegerField(blank=True, null=True)),
                 ('current_step', models.CharField(blank=True, max_length=255, null=True)),

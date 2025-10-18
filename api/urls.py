@@ -4,5 +4,6 @@ from . import views
 urlpatterns = [
   path('', views.getData),
   path('/auth', include('api.auth.urls')),
+  path('/profile', include('api.profile.urls')),
   path('/test', views.getData),
 ]
