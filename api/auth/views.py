@@ -15,9 +15,10 @@ from myproject.utils import create_access_token, generate_tokens
 from config.resp_messages import RM
 import random, jwt, datetime
 from config.helpers import generate_otp
-from config.conatants import ROLES
+from config.conatants import ROLES, EMAIL_SUBJECTS, EMAIL_TEMPLATES
 from myproject.permissions import IsNormalUser
 from django.utils import timezone
+from config.email_service import send_email, send_templated_email
 
 def handle_google_auth(token):
     if not token: return api_response(None, RM.user.GOOGLE_AUTH_SUCCESS, 400)
@@ -80,13 +81,26 @@ def auth_handler(request):
             if u.is_verified: return api_response(None, RM.user.OTP_VERIFIED, 200)
             u.otp, u.is_verified = generate_otp(), False; u.save()
             print(f"OTP to {email}: {u.otp}")
+            # send_email("Welcome!", f"Your account has been created successfully. Use this OTP: {u.otp}", [email])
+
+            send_templated_email(
+                EMAIL_SUBJECTS.WELCOME.value,
+                EMAIL_TEMPLATES.WELCOME.value,
+                {
+                    "otp": u.otp,
+                    "validity_minutes": 10,
+                    "support_url": "https://jelliemon.com/support",
+                },
+                [email]
+            )
+
             return api_response(None, RM.user.OTP_SENT_EMAIL, 200)
         if step == 'verify_otp':
             try: u = AppUser.objects.get(email=email)
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
             if str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
             u.is_verified, u.otp = True, ''; u.save()
-            return api_response(AppUserSerializer(u).data, RM.user.OTP_VERIFIED, 200)
+            return api_response(None, RM.user.OTP_VERIFIED, 200)
         if step == 'set_password':
             pwd, confirm = request.data.get('password'), request.data.get('confirm_password')
             if not all([email, pwd, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
@@ -147,6 +161,20 @@ def forget_password(request):
     if step == 'send_otp':
         u.otp = generate_otp(); u.save()
         print(f"OTP to {email}: {u.otp}")
+
+
+        send_templated_email(
+            EMAIL_SUBJECTS.FORGET_PASS.value,
+            EMAIL_TEMPLATES.FORGET_PASS.value,
+            context={
+                "name": u.name,
+                "otp": u.otp,
+                "validity_minutes": 10,
+                "support_url": "https://jelliemon.com/support",
+            },
+            recipient_list=[u.email]
+        )
+
         return api_response(None, RM.user.OTP_SENT_EMAIL, 200)
     if step == 'verify_otp':
         if not otp or str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
