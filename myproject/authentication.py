@@ -1,9 +1,9 @@
 # authentication.py
-import jwt, datetime
+import jwt
 from django.conf import settings
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from base.models import AppUser
+from base.models import AppUser, UserState
 from datetime import datetime, timezone as dt_timezone
 
 class CustomJWTAuthentication(BaseAuthentication):
@@ -18,21 +18,19 @@ class CustomJWTAuthentication(BaseAuthentication):
 
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
             user = AppUser.objects.get(id=payload['user_id'])
+            state = getattr(user, 'state', None)
 
-            # Check if user is active
             if not user.is_active:
                 raise AuthenticationFailed('User inactive')
 
-            # Convert iat to aware datetime in UTC
             issued_at = datetime.fromtimestamp(payload.get('iat', 0), tz=dt_timezone.utc)
-
-            # Ensure last_logout_at is also in UTC (Django stores aware datetimes)
-            last_logout = user.last_logout_at
+            last_logout = getattr(state, 'last_logout_at', None)
 
             if last_logout and issued_at <= last_logout.astimezone(dt_timezone.utc):
                 raise AuthenticationFailed('Token invalid after logout')
 
             request.user = user
+            request.user_state = state
             return (user, None)
 
         except jwt.ExpiredSignatureError:

@@ -1,5 +1,6 @@
 import jwt, datetime
 from django.conf import settings
+from base.models import UserState
 
 def create_access_token(data: dict, exp_hours=30):
     now = datetime.datetime.utcnow()
@@ -14,5 +15,6 @@ def create_refresh_token(data: dict, exp_days=30):
 def generate_tokens(u, AppUserSerializer):
     data = {'user_id': str(u.id), 'role': u.role}
     access, refresh = create_access_token(data), create_refresh_token(data)
-    u.token = refresh; u.save()
+    state, _ = UserState.objects.get_or_create(user=u)
+    state.token = refresh; state.save()
     return {"access": access, "refresh": refresh, "user": AppUserSerializer(u).data}

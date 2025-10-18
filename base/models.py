@@ -27,18 +27,12 @@ class AppUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=True, blank=True)
     phone = models.CharField(max_length=15, unique=True, null=True, blank=True)
     name = models.CharField(max_length=255)
-    user_class = models.CharField(max_length=50, null=True, blank=True, db_column='class')
     language = models.CharField(max_length=50, null=True, blank=True)
-    token = models.TextField(null=True, blank=True)
-    otp = models.CharField(max_length=10, null=True, blank=True)
-    current_step = models.IntegerField(default=0)
     is_verified = models.BooleanField(default=False)
     password = models.CharField(max_length=128, null=True, blank=True)
     role = models.PositiveSmallIntegerField(default=0)  # 0=user, 1=admin
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    last_login = models.DateTimeField(blank=True, null=True)
-    last_logout_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -53,7 +47,38 @@ class AppUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.name} ({self.email or self.phone})"
+    
+class UserState(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(AppUser, on_delete=models.CASCADE, related_name='state')
+    token = models.TextField(null=True, blank=True)
+    otp = models.IntegerField(null=True, blank=True)
+    current_step = models.CharField(max_length=255, null=True, blank=True)
+    last_login = models.DateTimeField(null=True, blank=True)
+    last_logout_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        db_table = 'user_state'
+        ordering = ['-last_login']
+
+    def __str__(self):
+        return f"{self.user.name} State"
+    
+class UserInfo(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(AppUser, on_delete=models.CASCADE, related_name='info')
+    school = models.CharField(max_length=255, null=True, blank=True)
+    board = models.CharField(max_length=255, null=True, blank=True)
+    user_class = models.CharField(max_length=50, null=True, blank=True, db_column='class')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_info'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.name} Info"
 
 class Subject(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

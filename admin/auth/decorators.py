@@ -2,7 +2,7 @@ from functools import wraps
 from django.contrib.auth.hashers import check_password
 from config.resp_middle import api_response
 from config.resp_messages import RM
-from base.models import AppUser
+from base.models import AppUser, UserState
 from config.conatants import ROLES
 
 def require_fields(fields):
@@ -25,7 +25,9 @@ def ensure_admin_exists(view_func):
             user = AppUser.objects.get(email=email, role=ROLES.ADMIN)
         except AppUser.DoesNotExist:
             return api_response(None, RM.admin.ADMIN_NOT_FOUND, 404)
+        state, _ = UserState.objects.get_or_create(user=user)
         request.admin_user = user
+        request.admin_state = state
         return view_func(request, *args, **kwargs)
     return wrapper
 
@@ -58,6 +60,16 @@ def validate_forget_password_fields(view_func):
             return api_response(None, f"Missing fields: {', '.join(missing)}", 400)
         if extra:
             return api_response(None, f"Unexpected fields: {', '.join(extra)}", 400)
+
+        # attach user state for convenience
+        email = data.get('email')
+        if email:
+            try:
+                user = AppUser.objects.get(email=email)
+                state, _ = UserState.objects.get_or_create(user=user)
+                request.user_state = state
+            except AppUser.DoesNotExist:
+                pass
 
         return view_func(request, *args, **kwargs)
     return wrapper

@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth.hashers import make_password, check_password
 from django.conf import settings
-from base.models import AppUser
+from base.models import AppUser, UserState
 from base.serializers import AppUserSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from config.resp_middle import api_response
@@ -56,6 +56,9 @@ def auth_handler(request):
         try: u = AppUser.objects.get(email=email)
         except AppUser.DoesNotExist: return api_response(None, RM.common.INVALID_CREDENTIALS, 401)
         if not u.is_verified or not check_password(pwd, u.password): return api_response(None, RM.common.INVALID_CREDENTIALS, 401)
+        state, _ = UserState.objects.get_or_create(user=u)
+        state.last_login = timezone.now()
+        state.save()
         return api_response(generate_tokens(u, AppUserSerializer), RM.user.LOGIN_SUCCESS, 200)
 
     if action == 'login' and mode == 'mobile':
@@ -63,14 +66,19 @@ def auth_handler(request):
         if not mobile: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         if step == 'send_otp':
             u, _ = AppUser.objects.get_or_create(phone=mobile)
-            u.otp, u.is_verified = generate_otp(), False; u.save()
-            print(f"OTP to {mobile}: {u.otp}")
+            state, _ = UserState.objects.get_or_create(user=u)
+            state.otp, u.is_verified = generate_otp(), False
+            state.save(); u.save()
+            print(f"OTP to {mobile}: {state.otp}")
             return api_response(None, RM.user.OTP_SENT_MOBILE, 200)
         if step == 'verify_otp':
             try: u = AppUser.objects.get(phone=mobile)
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
-            if str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-            u.is_verified, u.otp = True, ''; u.save()
+            state = getattr(u, 'state', None)
+            if not state or str(state.otp) != str(otp):
+                return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+            u.is_verified, state.otp = True, None
+            u.save(); state.save()
             return api_response(generate_tokens(u, AppUserSerializer), RM.user.MOBILE_LOGIN_SUCCESS, 200)
 
     if action == 'signup' and mode == 'email':
@@ -78,16 +86,19 @@ def auth_handler(request):
         if not email: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         if step == 'send_otp':
             u, _ = AppUser.objects.get_or_create(email=email)
+            state, _ = UserState.objects.get_or_create(user=u)
             if u.is_verified: return api_response(None, RM.user.OTP_VERIFIED, 200)
-            u.otp, u.is_verified = generate_otp(), False; u.save()
-            print(f"OTP to {email}: {u.otp}")
+            state.otp, u.is_verified = generate_otp(), False
+            state.save(); u.save()
+            print(f"OTP to {email}: {state.otp}")
+
             # send_email("Welcome!", f"Your account has been created successfully. Use this OTP: {u.otp}", [email])
 
             send_templated_email(
                 EMAIL_SUBJECTS.WELCOME.value,
                 EMAIL_TEMPLATES.WELCOME.value,
                 {
-                    "otp": u.otp,
+                    "otp": state.otp,
                     "validity_minutes": 10,
                     "support_url": "https://jelliemon.com/support",
                 },
@@ -98,9 +109,12 @@ def auth_handler(request):
         if step == 'verify_otp':
             try: u = AppUser.objects.get(email=email)
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
-            if str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-            u.is_verified, u.otp = True, ''; u.save()
+            state = getattr(u, 'state', None)
+            if not state or str(state.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+            u.is_verified, state.otp = True, None
+            u.save(); state.save()
             return api_response(None, RM.user.OTP_VERIFIED, 200)
+
         if step == 'set_password':
             pwd, confirm = request.data.get('password'), request.data.get('confirm_password')
             if not all([email, pwd, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
@@ -109,28 +123,36 @@ def auth_handler(request):
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
             if not u.is_verified: return api_response(None, RM.common.EMAIL_NOT_VERIFIED, 403)
             u.password = make_password(pwd); u.save()
-            return api_response(generate_tokens(u, AppUserSerializer), RM.user.PASSWORD_SET_SUCCESS, 200)
+            return api_response(None, RM.user.PASSWORD_SET_SUCCESS, 200)
 
     if action == 'signup' and mode == 'mobile':
         step, mobile, otp = request.data.get('step', 'send_otp'), request.data.get('mobile'), request.data.get('otp')
         if not mobile: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         if step == 'send_otp':
             u, _ = AppUser.objects.get_or_create(phone=mobile)
-            u.otp, u.is_verified = generate_otp(), False; u.save()
-            print(f"OTP to {mobile}: {u.otp}")
+            state, _ = UserState.objects.get_or_create(user=u)
+            state.otp, u.is_verified = generate_otp(), False
+            state.save(); u.save()
+            print(f"OTP to {mobile}: {state.otp}")
             return api_response(None, RM.user.OTP_SENT_MOBILE, 200)
         if step == 'verify_otp':
             try: u = AppUser.objects.get(phone=mobile)
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
-            if str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-            u.is_verified, u.otp = True, ''; u.save()
-            return api_response(generate_tokens(u, AppUserSerializer), RM.user.MOBILE_VERIFIED, 200)    
+            state = getattr(u, 'state', None)
+            if not state or str(state.otp) != str(otp): 
+                return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+            u.is_verified, state.otp = True, None
+            u.save(); state.save()
+            return api_response(None, RM.user.MOBILE_VERIFIED, 200)
+
     if action == 'logout':
         try:
             user = AppUser.objects.get(id=request.user.id, role=ROLES.USER)
-            user.token = None
-            user.last_logout_at = timezone.now()
-            user.save()
+            state = getattr(user, 'state', None)
+            if state:
+                state.token = None
+                state.last_logout_at = timezone.now()
+                state.save()
             return api_response(None, RM.admin.LOGOUT_SUCCESS, 200)
         except AppUser.DoesNotExist:
             return api_response(None, RM.admin.ADMIN_NOT_FOUND, 404)
@@ -143,7 +165,10 @@ def refresh_token(request):
     token = request.data.get('refresh')
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-        user = AppUser.objects.get(id=payload['user_id'], token=token)
+        user = AppUser.objects.get(id=payload['user_id'])
+        state = getattr(user, 'state', None)
+        if not state or state.token != token:
+            raise AuthenticationFailed(RM.common.INVALID_REFRESH_TOKEN)
     except (jwt.ExpiredSignatureError, jwt.DecodeError, AppUser.DoesNotExist):
         raise AuthenticationFailed(RM.common.INVALID_REFRESH_TOKEN)
     new_data = {'user_id': str(user.id), 'role': user.role}
@@ -158,33 +183,33 @@ def forget_password(request):
     if not email: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
     try: u = AppUser.objects.get(email=email)
     except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
+    state, _ = UserState.objects.get_or_create(user=u)
     if step == 'send_otp':
-        u.otp = generate_otp(); u.save()
-        print(f"OTP to {email}: {u.otp}")
-
+        state.otp = generate_otp(); state.save()
+        print(f"OTP to {email}: {state.otp}")
 
         send_templated_email(
             EMAIL_SUBJECTS.FORGET_PASS.value,
             EMAIL_TEMPLATES.FORGET_PASS.value,
             context={
                 "name": u.name,
-                "otp": u.otp,
+                "otp": state.otp,
                 "validity_minutes": 10,
                 "support_url": "https://jelliemon.com/support",
             },
             recipient_list=[u.email]
         )
-
         return api_response(None, RM.user.OTP_SENT_EMAIL, 200)
     if step == 'verify_otp':
-        if not otp or str(u.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+        if not otp or str(state.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         return api_response(None, RM.user.OTP_VERIFIED, 200)
     if step == 'set_password':
         if not all([pwd, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         if pwd != confirm: return api_response(None, RM.common.PASSWORD_MISMATCH, 400)
-        u.password = make_password(pwd); u.otp = ''; u.save()
+        u.password = make_password(pwd); state.otp = ''; u.save(); state.save()
         return api_response(generate_tokens(u, AppUserSerializer), RM.user.PASSWORD_RESET_SUCCESS, 200)
     return api_response(None, RM.common.INVALID_STEP, 400)
+
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsNormalUser])
