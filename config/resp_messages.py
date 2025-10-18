@@ -1,4 +1,11 @@
 # config/resp_messages.py
+from googletrans import Translator
+from django.conf import settings
+translator = Translator()
+
+def tr(msg, user=None, lang=None):
+    lang = lang or (getattr(user, 'language', None) if user else None) or getattr(settings, 'DEFAULT_LANGUAGE', 'en')
+    return translator.translate(msg, dest=lang).text if lang != 'en' else msg
 
 class CommonMessages:
     INVALID_REQUEST = "Invalid request."
