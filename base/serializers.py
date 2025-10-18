@@ -1,19 +1,31 @@
 from rest_framework import serializers
 from .models import (
-    AppUser, Subject, Unit, Lesson, Question,
+    AppUser, UserInfo, UserState, Subject, Unit, Lesson, Question,
     Progress, Badge, Product, Event
 )
 
 class AppUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppUser
-        fields = ['id', 'email', 'phone', 'name', 'user_class', 'language', 'created_at', 'updated_at']
+        fields = ['id', 'email', 'phone', 'name', 'language', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate(self, data):
         if not data.get('email') and not data.get('phone'):
             raise serializers.ValidationError("Either email or phone is required")
         return data
+
+class UserInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserInfo
+        fields = ['id', 'user', 'school', 'board', 'user_class', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class UserStateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserState
+        fields = ['id', 'user', 'token', 'otp', 'current_step', 'last_login', 'last_logout_at']
+        read_only_fields = ['id', 'last_login', 'last_logout_at']
 
 
 class QuestionSerializer(serializers.ModelSerializer):
