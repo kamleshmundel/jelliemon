@@ -117,12 +117,11 @@ class Language(models.Model):
 class Subject(models.Model):
     id = models.AutoField(primary_key=True)
     board = models.CharField(max_length=100)
-    subject_class = models.CharField(max_length=50, db_column='class')
     name = models.CharField(max_length=255)
 
     class Meta:
         db_table = 'subject'
-        ordering = ['board', 'subject_class', 'name']
+        ordering = ['board', 'name']
 
     def __str__(self):
         return f"{self.name} - {self.board} ({self.subject_class})"
@@ -132,32 +131,23 @@ class Unit(models.Model):
     id = models.AutoField(primary_key=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='units')
     title = models.CharField(max_length=255)
-    sort_order = models.IntegerField(default=0)
 
     class Meta:
         db_table = 'unit'
-        ordering = ['sort_order', 'title']
+        ordering = ['title']
 
     def __str__(self):
         return self.title
 
 
 class Lesson(models.Model):
-    STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('published', 'Published'),
-        ('archived', 'Archived'),
-    ]
-
     id = models.AutoField(primary_key=True)
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=255)
-    sort_order = models.IntegerField(default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 
     class Meta:
         db_table = 'lesson'
-        ordering = ['sort_order', 'title']
+        ordering = ['title']
 
     def __str__(self):
         return self.title
