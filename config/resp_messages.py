@@ -33,6 +33,7 @@ class AdminMessages:
     NO_SUBJECT = "Subject not found."
     NO_LESSION = "Lession not found."
     LESSION_DELETED = "Lession deleted successfully."
+    QUE_ADDED = "Question added successfully."
 
 class UserMessages:
     OTP_SENT_EMAIL = "OTP sent to your email."
