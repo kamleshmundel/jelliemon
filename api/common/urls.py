@@ -5,6 +5,6 @@ urlpatterns = [
   path('/countries', get_countries),
   path('/languages', get_languages),
   path('/subjects', subjects_view),
-  path('/units', units_view),
   path('/lessons', lessons_view),
+  path('/units', units_view),
 ]

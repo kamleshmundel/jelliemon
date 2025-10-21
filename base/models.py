@@ -124,29 +124,29 @@ class Subject(models.Model):
         ordering = ['board', 'name']
 
     def __str__(self):
-        return f"{self.name} - {self.board} ({self.subject_class})"
+        return f"{self.name} - {self.board}"
 
 
-class Unit(models.Model):
+class Lesson(models.Model):
     id = models.AutoField(primary_key=True)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='units')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=255)
 
     class Meta:
-        db_table = 'unit'
+        db_table = 'lesson'
         ordering = ['title']
 
     def __str__(self):
         return self.title
 
 
-class Lesson(models.Model):
+class Unit(models.Model):
     id = models.AutoField(primary_key=True)
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='lessons')
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='units')
     title = models.CharField(max_length=255)
 
     class Meta:
-        db_table = 'lesson'
+        db_table = 'unit'
         ordering = ['title']
 
     def __str__(self):
@@ -158,7 +158,6 @@ class Question(models.Model):
         ('ssl', 'Single Selection'),
         ('mcq', 'Multiple Choice'),
         ('true_false', 'True/False'),
-        # ('fill_blank', 'Fill in the Blank'),
     ]
 
     id = models.AutoField(primary_key=True)
