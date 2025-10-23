@@ -32,28 +32,25 @@ def get_profile(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated, IsNormalUser])
-@require_fields(['language', 'school', 'board', 'class', 'country', 'state', 'city'])
+@require_fields(['language', 'avatar', 'school', 'board', 'class', 'country', 'state', 'city'])
 def update_profile(request):
-    user = request.user
-    data = request.data
+    user, data = request.user, request.data
 
-    if lid := data.get('language'):
-        try: user.language = Language.objects.get(id=lid)
+    if 'language' in data:
+        try: user.language = Language.objects.get(id=data['language'])
         except Language.DoesNotExist: pass
 
-    user.avatar = data.get('avatar', user.avatar)
+    if 'avatar' in data: user.avatar = data['avatar']
     user.save()
 
     info, _ = UserInfo.objects.get_or_create(user=user)
-    info.school = data.get('school', info.school)
-    info.board = data.get('board', info.board)
-    info.user_class = data.get('class', info.user_class)
-    if cid := data.get('country'):
-        try: info.country = Country.objects.get(id=cid)
-        except Country.DoesNotExist: pass
-    info.state = data.get('state', info.state)
-    info.city = data.get('city', info.city)
-    info.save()
+    for field in ['school', 'board', 'class', 'state', 'city']:
+        if field in data: setattr(info, 'user_class' if field == 'class' else field, data[field])
 
+    if 'country' in data:
+        try: info.country = Country.objects.get(id=data['country'])
+        except Country.DoesNotExist: pass
+
+    info.save()
     return api_response(None, RM.user.PROFILE_UPDATED, 200)
 
