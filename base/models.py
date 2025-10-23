@@ -117,75 +117,80 @@ class Language(models.Model):
 class Subject(models.Model):
     id = models.AutoField(primary_key=True)
     board = models.CharField(max_length=100)
-    subject_class = models.CharField(max_length=50, db_column='class')
     name = models.CharField(max_length=255)
 
     class Meta:
         db_table = 'subject'
-        ordering = ['board', 'subject_class', 'name']
+        ordering = ['board', 'name']
 
     def __str__(self):
-        return f"{self.name} - {self.board} ({self.subject_class})"
+        return f"{self.name} - {self.board}"
 
 
-class Unit(models.Model):
+class Lesson(models.Model):
     id = models.AutoField(primary_key=True)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='units')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=255)
-    sort_order = models.IntegerField(default=0)
 
     class Meta:
-        db_table = 'unit'
-        ordering = ['sort_order', 'title']
+        db_table = 'lesson'
+        ordering = ['title']
 
     def __str__(self):
         return self.title
 
 
-class Lesson(models.Model):
-    STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('published', 'Published'),
-        ('archived', 'Archived'),
-    ]
-
+class Unit(models.Model):
     id = models.AutoField(primary_key=True)
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='lessons')
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='units')
     title = models.CharField(max_length=255)
-    sort_order = models.IntegerField(default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 
     class Meta:
-        db_table = 'lesson'
-        ordering = ['sort_order', 'title']
+        db_table = 'unit'
+        ordering = ['title']
 
     def __str__(self):
         return self.title
 
 
 class Question(models.Model):
-    DIFFICULTY_CHOICES = [
-        ('easy', 'Easy'),
-        ('normal', 'Normal'),
-        ('hard', 'Hard'),
+    TYPE_CHOICES = [
+        ('ssl', 'Single Selection'),
+        ('mcq', 'Multiple Choice'),
+        ('true_false', 'True/False'),
     ]
 
     id = models.AutoField(primary_key=True)
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='questions')
-    stem = models.TextField()
-    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, default='normal')
-    options = models.JSONField()  # Array of 4 options
-    correct_index = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(3)])
-    hints = models.JSONField(default=list)
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='mcq')
+    asset = models.URLField(max_length=500, null=True, blank=True)
+    option_images = models.BooleanField(default=False)
+    hint = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'question'
-        indexes = [
-            models.Index(fields=['lesson'], name='idx_question_lesson'),
-        ]
+        indexes = [models.Index(fields=['lesson'], name='idx_question_lesson')]
+        ordering = ['title']
 
     def __str__(self):
-        return f"Q: {self.stem[:50]}..."
+        return self.title
+
+class Answer(models.Model):
+    id = models.AutoField(primary_key=True)
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answers')
+    text = models.TextField(null=True, blank=True)
+    image = models.URLField(max_length=500, null=True, blank=True)
+    is_correct = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'answer'
+        indexes = [models.Index(fields=['question'], name='idx_answer_question')]
+        ordering = ['id']
+
+    def __str__(self):
+        return f"Answer to Q{self.question_id}: {self.text or self.image}"
 
 
 class Progress(models.Model):

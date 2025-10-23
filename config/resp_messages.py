@@ -30,6 +30,20 @@ class AdminMessages:
     LOGOUT_SUCCESS = "Logged out successfully."
     INVALID_OTP = "Invalid OTP."
     TOKEN_REFRESSHED = "Token refreshed."
+    # subjects
+    NO_SUBJECT = "Subject not found."
+    SUBJECT_DELETED = "Subject deleted successfully."
+
+    # lessons
+    NO_LESSION = "Lession not found."
+    LESSION_DELETED = "Lession deleted successfully."
+
+    # units
+    NO_UNIT = "Unit not found."
+    UNIT_DELETED = "Unit deleted successfully."
+
+    # question
+    QUE_ADDED = "Question added successfully."
 
 class UserMessages:
     OTP_SENT_EMAIL = "OTP sent to your email."
