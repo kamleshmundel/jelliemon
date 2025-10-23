@@ -201,7 +201,7 @@ def forget_password(request):
         )
         return api_response(None, RM.user.OTP_SENT_EMAIL, 200)
     if step == 'verify_otp':
-        if not otp or str(state.otp) != str(otp): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+        if not otp or state.otp != otp: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
         return api_response(None, RM.user.OTP_VERIFIED, 200)
     if step == 'set_password':
         if not all([pwd, confirm]): return api_response(None, RM.common.REQUIRED_FIELDS, 400)
