@@ -23,7 +23,7 @@ def get_profile(request):
         "info": getattr(user, "info", None) and {
             "school": user.info.school,
             "board": user.info.board,
-            "class": user.info.user_class,
+            "current_class": user.info.user_class,
             "country": getattr(user.info.country, "name", None),
             "state": user.info.state,
             "city": user.info.city,

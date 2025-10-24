@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from base.models import Country, Language, Subject, Unit, Lesson
+from base.models import Country, State, City, Language, Subject, Unit, Lesson
 from config.resp_middle import paginated_response
 from config.resp_messages import RM
 from myproject.permissions import IsNormalUser, IsAdmin
@@ -13,6 +13,24 @@ from rest_framework import status
 def get_countries(request):
     qs = Country.objects.all().order_by('name')
     return paginated_response(qs, request, lambda c: {"id": c.id, "name": c.name, "code": c.code})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_states(request):
+    country_id = request.query_params.get('country_id')
+    if not country_id:
+        return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+    qs = State.objects.filter(country_id=country_id).order_by('name')
+    return paginated_response(qs, request, lambda s: {"id": s.id, "name": s.name, "code": s.code, "country_id": s.country_id})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_cities(request):
+    state_id = request.query_params.get('state_id')
+    if not state_id:
+        return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+    qs = City.objects.filter(state_id=state_id).order_by('name')
+    return paginated_response(qs, request, lambda c: {"id": c.id, "name": c.name, "code": c.code, "state_id": c.state_id})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

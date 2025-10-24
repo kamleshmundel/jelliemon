@@ -81,6 +81,38 @@ class Country(models.Model):
     def __str__(self):
         return self.name
 
+class State(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=10, blank=True, null=True)
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='states')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'state'
+        unique_together = ('name', 'country')
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name}, {self.country.name}"
+
+
+class City(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='cities')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'city'
+        unique_together = ('name', 'state')
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name}, {self.state.name}"
+
 class UserInfo(models.Model):
     id = models.AutoField(primary_key=True)
     user = models.OneToOneField(AppUser, on_delete=models.CASCADE, related_name='info')
@@ -88,8 +120,8 @@ class UserInfo(models.Model):
     board = models.CharField(max_length=255, null=True, blank=True)
     user_class = models.CharField(max_length=50, null=True, blank=True, db_column='class')
     country = models.ForeignKey(Country, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
-    state = models.CharField(max_length=255, null=True, blank=True)
-    city = models.CharField(max_length=255, null=True, blank=True)
+    state = models.ForeignKey(State, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
+    city = models.ForeignKey(City, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
