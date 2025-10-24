@@ -41,6 +41,7 @@ def update_profile(request):
         except Language.DoesNotExist: pass
 
     if 'avatar' in data: user.avatar = data['avatar']
+    if 'name' in data: user.name = data['name']
     user.save()
 
     info, _ = UserInfo.objects.get_or_create(user=user)
