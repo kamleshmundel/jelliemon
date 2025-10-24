@@ -44,6 +44,9 @@ def get_languages(request):
 def subjects_view(request):
     if request.method == 'GET':
         qs = Subject.objects.all().order_by('name')
+        board = request.GET.get('board')
+        if board:
+            qs = qs.filter(board=board)
         return paginated_response(qs, request, lambda l: {"id": l.id, "board": l.board, "name": l.name})
     
     if request.method == 'POST':

@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-zx=)jt5o=--=_-hw9%d)*6*9+!yuqfk5h7#v$)8z!y!!we-8+e'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
@@ -57,6 +57,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'config.translate_middleware.TranslateResponseMiddleware',
+    'config.resp_middle.JsonErrorMiddleware',
 ]
 
 ROOT_URLCONF = 'myproject.urls'
@@ -140,6 +141,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "config.resp_middle.custom_exception_handler",
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'myproject.authentication.CustomJWTAuthentication',
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
