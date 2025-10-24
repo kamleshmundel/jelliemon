@@ -21,6 +21,11 @@ class CommonMessages:
     INVALID_STEP = "Invalid step."
     SUCCESS = "Success"
 
+    LANG_FOUND = "Language not found."
+    COUNTRY_FOUND = "Country not found."
+    STATE_FOUND = "State not found."
+    CITY_FOUND = "City not found."
+
 class AdminMessages:
     ADMIN_NOT_FOUND = "Admin not found."
     OTP_SENT = "OTP sent to admin email."

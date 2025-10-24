@@ -4,8 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from config.resp_messages import RM
 from config.resp_middle import api_response
 from myproject.permissions import IsNormalUser
-from base.models import Language, UserInfo, Country
+from base.models import Language, UserInfo, Country, State, City
 from .decorators import require_fields
+from rest_framework import status
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsNormalUser])
@@ -38,20 +39,29 @@ def update_profile(request):
 
     if 'language' in data:
         try: user.language = Language.objects.get(id=data['language'])
-        except Language.DoesNotExist: pass
+        except Language.DoesNotExist: return api_response(None, RM.common.LANG_FOUND, status=status.HTTP_400_BAD_REQUEST)
 
     if 'avatar' in data: user.avatar = data['avatar']
     if 'name' in data: user.name = data['name']
     user.save()
 
     info, _ = UserInfo.objects.get_or_create(user=user)
-    for field in ['school', 'board', 'class', 'state', 'city']:
-        if field in data: setattr(info, 'user_class' if field == 'class' else field, data[field])
+
+    if 'school' in data: info.school = data['school']
+    if 'board' in data: info.board = data['board']
+    if 'class' in data: info.user_class = data['class']
 
     if 'country' in data:
         try: info.country = Country.objects.get(id=data['country'])
-        except Country.DoesNotExist: pass
+        except Country.DoesNotExist: return api_response(None, RM.common.COUNTRY_FOUND, status=status.HTTP_400_BAD_REQUEST)
+
+    if 'state' in data:
+        try: info.state = State.objects.get(id=data['state'])
+        except State.DoesNotExist: return api_response(None, RM.common.STATE_FOUND, status=status.HTTP_400_BAD_REQUEST)
+
+    if 'city' in data:
+        try: info.city = City.objects.get(id=data['city'])
+        except City.DoesNotExist: return api_response(None, RM.common.CITY_FOUND, status=status.HTTP_400_BAD_REQUEST)
 
     info.save()
     return api_response(None, RM.user.PROFILE_UPDATED, 200)
-
