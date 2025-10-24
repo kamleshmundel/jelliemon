@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from base.models import Country, State, City, Language, Subject, Unit, Lesson
+from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson
 from config.resp_middle import paginated_response
 from config.resp_messages import RM
 from myproject.permissions import IsNormalUser, IsAdmin
@@ -81,35 +81,69 @@ def subjects_view(request):
 @permission_classes([IsAuthenticated])
 def units_view(request):
     if request.method == 'GET':
-        lesson_id = request.GET.get('lessionId')
-        qs = Unit.objects.select_related('lesson').all().order_by('title')
-        if lesson_id:
+        unit_id = request.GET.get('unitId')
+        lesson_id = request.GET.get('lessonId')
+
+        qs = Unit.objects.select_related('lesson').prefetch_related('parts').all().order_by('title')
+
+        if unit_id:
+            qs = qs.filter(id=unit_id)
+        elif lesson_id:
             qs = qs.filter(lesson_id=lesson_id)
-        return paginated_response(qs, request, lambda u: {"id": u.id, "title": u.title, "lesson_id": u.lesson.id, "lesson_name": u.lesson.title})
+
+        return paginated_response(qs, request, lambda u: {
+            "id": u.id,
+            "title": u.title,
+            "lesson_id": u.lesson.id,
+            "lesson_name": u.lesson.title,
+            "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()]
+        })
 
 
     if request.method == 'POST':
         unit_id = request.data.get('id')
         title = request.data.get('title')
         lesson_id = request.data.get('lessonId')
+        parts = request.data.get('parts', [])
+
         if not title or not lesson_id:
             return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
         try:
             lesson = Lesson.objects.get(id=lesson_id)
         except Lesson.DoesNotExist:
-            return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+            return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
+
         if unit_id:
             try:
                 unit = Unit.objects.get(id=unit_id)
-                unit.title = title
-                unit.lesson = lesson
+                unit.title, unit.lesson = title, lesson
                 unit.save()
-                return api_response({"id": unit.id, "title": unit.title, "lesson_id": lesson.id, "lesson_name": lesson.title}, RM.common.SUCCESS, status.HTTP_200_OK)
+                unit.parts.all().delete()
+                for p in parts:
+                    if p.get('title') and p.get('content'):
+                        UnitPart.objects.create(unit=unit, title=p['title'], content=p['content'])
+                return api_response({
+                    "id": unit.id,
+                    "title": unit.title,
+                    "lesson_id": lesson.id,
+                    "lesson_name": lesson.title,
+                    "parts": [{"title": p.title, "content": p.content} for p in unit.parts.all()]
+                }, RM.common.SUCCESS, status.HTTP_200_OK)
             except Unit.DoesNotExist:
                 return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
         else:
             unit = Unit.objects.create(title=title, lesson=lesson)
-            return api_response({"id": unit.id, "title": unit.title, "lesson_id": lesson.id, "lesson_name": lesson.title}, RM.common.SUCCESS, status.HTTP_201_CREATED)
+            for p in parts:
+                if p.get('title') and p.get('content'):
+                    UnitPart.objects.create(unit=unit, title=p['title'], content=p['content'])
+            return api_response({
+                "id": unit.id,
+                "title": unit.title,
+                "lesson_id": lesson.id,
+                "lesson_name": lesson.title,
+                "parts": [{"title": p.title, "content": p.content} for p in unit.parts.all()]
+            }, RM.common.SUCCESS, status.HTTP_201_CREATED)
+
 
     if request.method == 'DELETE':
         unit_id = request.GET.get('id') or request.data.get('id')

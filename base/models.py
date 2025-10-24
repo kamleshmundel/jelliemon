@@ -184,6 +184,19 @@ class Unit(models.Model):
     def __str__(self):
         return self.title
 
+class UnitPart(models.Model):
+    id = models.AutoField(primary_key=True)
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='parts')
+    title = models.TextField()
+    content = models.TextField()
+
+    class Meta:
+        db_table = 'unit_parts'
+        indexes = [models.Index(fields=['unit'], name='idx_unitpart_unit')]
+        ordering = ['title']
+
+    def __str__(self):
+        return self.title
 
 class Question(models.Model):
     TYPE_CHOICES = [
