@@ -31,8 +31,8 @@ def get_profile(request):
             "board": user.info.board,
             "current_class": user.info.user_class,
             "country": getattr(user.info.country, "name", None),
-            "state": user.info.state,
-            "city": user.info.city,
+            "state": getattr(user.info.state, "name", None),
+            "city": getattr(user.info.city, "name", None),
             "xp": user.info.xp
         },
         "stars": {
