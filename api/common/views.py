@@ -31,7 +31,7 @@ def get_cities(request):
     if not state_id:
         return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
     qs = City.objects.filter(state_id=state_id).order_by('name')
-    return paginated_response(qs, request, lambda c: {"id": c.id, "name": c.name, "code": c.code, "state_id": c.state_id})
+    return paginated_response(qs, request, lambda c: {"id": c.id, "name": c.name, "state_id": c.state_id})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
