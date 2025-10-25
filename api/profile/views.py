@@ -18,7 +18,10 @@ def get_profile(request):
             "name": user.name,
             "email": user.email,
             "phone": user.phone,
-            "language": getattr(user.language, "name", None),
+            "language": {
+                "id": user.language.id,
+                "name": user.language.name,
+            } if getattr(user, "language", None) else None,
             "avatar": user.avatar,
         },
         "info": getattr(user, "info", None) and {
@@ -28,6 +31,18 @@ def get_profile(request):
             "country": getattr(user.info.country, "name", None),
             "state": user.info.state,
             "city": user.info.city,
+        },
+        "checkpoint" : [{
+            "subject_id": 1,
+            "last_lesson_id": 1,
+            "stars": [
+                { "lesson_id": 1, "stars": 2, },
+                { "lesson_id": 2, "stars": 3, },
+            ]
+        }],
+        "stars": {
+            "earned": 10,
+            "total": 30,
         }
     }, RM.common.SUCCESS, 200)
 

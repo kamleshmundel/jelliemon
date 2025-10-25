@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson
+from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson, Question
 from config.resp_middle import paginated_response
 from config.resp_messages import RM
 from myproject.permissions import IsNormalUser, IsAdmin
@@ -79,25 +79,82 @@ def subjects_view(request):
 
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
+def lessons_view(request):
+    if request.method == 'GET':
+        subject_id = request.GET.get('subject')
+        qs = Lesson.objects.select_related('subject').all().order_by('title')
+        if subject_id:
+            qs = qs.filter(subject_id=subject_id)
+        return paginated_response(qs, request, lambda l: {"id": l.id, "title": l.title, "subject_id": l.subject.id, "subject_title": l.subject.name})
+
+    if request.method == 'POST':
+        lesson_id = request.data.get('id')
+        title = request.data.get('title')
+        subject_id = request.data.get('subjectId')
+        if not title or not subject_id:
+            return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            subject = Subject.objects.get(id=subject_id)
+        except Subject.DoesNotExist:
+            return api_response(None, RM.admin.NO_SUBJECT, status=status.HTTP_404_NOT_FOUND)
+        if lesson_id:
+            try:
+                lesson = Lesson.objects.get(id=lesson_id)
+                lesson.title = title
+                lesson.subject = subject
+                lesson.save()
+                return api_response({"id": lesson.id, "title": lesson.title, "subject_id": subject.id, "subject_title": subject.name}, RM.common.SUCCESS, status.HTTP_200_OK)
+            except Lesson.DoesNotExist:
+                return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
+        else:
+            lesson = Lesson.objects.create(title=title, subject=subject)
+            return api_response({"id": lesson.id, "title": lesson.title, "subject_id": subject.id, "subject_title": subject.name}, RM.common.SUCCESS, status.HTTP_201_CREATED)
+
+    if request.method == 'DELETE':
+        lesson_id = request.GET.get('id') or request.data.get('id')
+        try:
+            lesson = Lesson.objects.get(id=lesson_id)
+            lesson.delete()
+            return api_response(None, RM.admin.LESSION_DELETED, status.HTTP_200_OK)
+        except Lesson.DoesNotExist:
+            return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
+        
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def units_view(request):
     if request.method == 'GET':
         unit_id = request.GET.get('unitId')
         lesson_id = request.GET.get('lessonId')
+        include_questions = request.GET.get('includeQuestions')
 
         qs = Unit.objects.select_related('lesson').prefetch_related('parts').all().order_by('title')
-
         if unit_id:
             qs = qs.filter(id=unit_id)
         elif lesson_id:
             qs = qs.filter(lesson_id=lesson_id)
 
-        return paginated_response(qs, request, lambda u: {
-            "id": u.id,
-            "title": u.title,
-            "lesson_id": u.lesson.id,
-            "lesson_name": u.lesson.title,
-            "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()]
-        })
+        def serialize_unit(u):
+            data = {
+                "id": u.id,
+                "title": u.title,
+                "lesson_id": u.lesson.id,
+                "lesson_name": u.lesson.title,
+                "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()]
+            }
+            if include_questions:
+                questions = Question.objects.filter(unit=u).prefetch_related('answers').order_by('id')
+                data["questions"] = [{
+                    "id": q.id,
+                    "title": q.title,
+                    "content": q.content,
+                    "type": q.type,
+                    "asset": q.asset,
+                    "hint": q.hint,
+                    "answers": [{"id": a.id, "text": a.text, "is_correct": a.is_correct, "asset": a.image} for a in q.answers.all()]
+                } for q in questions]
+            return data
+
+        return paginated_response(qs, request, serialize_unit)
 
 
     if request.method == 'POST':
@@ -153,45 +210,3 @@ def units_view(request):
             return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)
         except Unit.DoesNotExist:
             return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
-
-@api_view(['GET', 'POST', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def lessons_view(request):
-    if request.method == 'GET':
-        subject_id = request.GET.get('subject')
-        qs = Lesson.objects.select_related('subject').all().order_by('title')
-        if subject_id:
-            qs = qs.filter(subject_id=subject_id)
-        return paginated_response(qs, request, lambda l: {"id": l.id, "title": l.title, "subject_id": l.subject.id, "subject_title": l.subject.name})
-
-    if request.method == 'POST':
-        lesson_id = request.data.get('id')
-        title = request.data.get('title')
-        subject_id = request.data.get('subjectId')
-        if not title or not subject_id:
-            return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            subject = Subject.objects.get(id=subject_id)
-        except Subject.DoesNotExist:
-            return api_response(None, RM.admin.NO_SUBJECT, status=status.HTTP_404_NOT_FOUND)
-        if lesson_id:
-            try:
-                lesson = Lesson.objects.get(id=lesson_id)
-                lesson.title = title
-                lesson.subject = subject
-                lesson.save()
-                return api_response({"id": lesson.id, "title": lesson.title, "subject_id": subject.id, "subject_title": subject.name}, RM.common.SUCCESS, status.HTTP_200_OK)
-            except Lesson.DoesNotExist:
-                return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
-        else:
-            lesson = Lesson.objects.create(title=title, subject=subject)
-            return api_response({"id": lesson.id, "title": lesson.title, "subject_id": subject.id, "subject_title": subject.name}, RM.common.SUCCESS, status.HTTP_201_CREATED)
-
-    if request.method == 'DELETE':
-        lesson_id = request.GET.get('id') or request.data.get('id')
-        try:
-            lesson = Lesson.objects.get(id=lesson_id)
-            lesson.delete()
-            return api_response(None, RM.admin.LESSION_DELETED, status.HTTP_200_OK)
-        except Lesson.DoesNotExist:
-            return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)

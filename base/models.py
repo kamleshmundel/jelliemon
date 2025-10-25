@@ -206,7 +206,7 @@ class Question(models.Model):
     ]
 
     id = models.AutoField(primary_key=True)
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='questions')
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='questions')
     title = models.CharField(max_length=255)
     content = models.TextField()
     type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='mcq')
@@ -216,7 +216,7 @@ class Question(models.Model):
 
     class Meta:
         db_table = 'question'
-        indexes = [models.Index(fields=['lesson'], name='idx_question_lesson')]
+        indexes = [models.Index(fields=['unit'], name='idx_question_unit')]
         ordering = ['title']
 
     def __str__(self):

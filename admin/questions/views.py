@@ -12,10 +12,10 @@ from rest_framework import status
 @permission_classes([IsAuthenticated])
 def questions_view(request):
     if request.method == 'GET':
-        lesson_id = request.GET.get('lesson_id')
-        qs = Question.objects.select_related('lesson').prefetch_related('answers').all().order_by('id')
-        if lesson_id:
-            qs = qs.filter(lesson_id=lesson_id)
+        unit_id = request.GET.get('unit_id')
+        qs = Question.objects.select_related('unit').prefetch_related('answers').all().order_by('id')
+        if unit_id:
+            qs = qs.filter(unit_id=unit_id)
         return paginated_response(qs, request, lambda q: {
             "id": q.id,
             "title": q.title,
@@ -24,14 +24,14 @@ def questions_view(request):
             "asset": q.asset,
             "option_images": q.option_images,
             "hint": q.hint,
-            "lesson_id": q.lesson.id,
-            "lesson_title": q.lesson.title,
+            "unit_id": q.unit.id,
+            "unit_title": q.unit.title,
             "answers": [{"id": a.id, "text": a.text, "image": a.image, "is_correct": a.is_correct} for a in q.answers.all()]
         })
 
     if request.method == 'POST':
         question_data = {
-            "lesson_id": request.data.get("lesson"),
+            "unit_id": request.data.get("unit"),
             "title": request.data.get("title"),
             "content": request.data.get("content"),
             "type": request.data.get("type"),
@@ -43,17 +43,17 @@ def questions_view(request):
         options = request.data.get("options", [])
         answers = [*options] if isinstance(options, (list, tuple, set)) else [options]
 
-        lesson_id = question_data["lesson_id"]
-        if not lesson_id or not question_data["title"]:
-            return api_response(None, RM.common.PASSWORD_MISMATCH, status=status.HTTP_400_BAD_REQUEST)
+        unit_id = question_data["unit_id"]
+        if not unit_id or not question_data["title"]:
+            return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            lesson = Lesson.objects.get(id=lesson_id)
-        except Lesson.DoesNotExist:
+            unit = Unit.objects.get(id=unit_id)
+        except Unit.DoesNotExist:
             return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
 
         question = Question.objects.create(
-            lesson=lesson,
+            unit=unit,
             title=question_data["title"],
             content=question_data["content"],
             type=question_data["type"],
