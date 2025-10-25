@@ -1,12 +1,13 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson, Question, Badge
+from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson, Question, Badge, Score
 from config.resp_middle import paginated_response
 from config.resp_messages import RM
 from myproject.permissions import IsNormalUser, IsAdmin
 from config.resp_middle import api_response
 from rest_framework import status
+from config.helpers import calculate_read_time_in_hours
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -134,12 +135,19 @@ def units_view(request):
             qs = qs.filter(lesson_id=lesson_id)
 
         def serialize_unit(u):
+            score = Score.objects.filter(user=request.user, unit=u).first()
+
             data = {
                 "id": u.id,
                 "title": u.title,
                 "lesson_id": u.lesson.id,
                 "lesson_name": u.lesson.title,
-                "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()]
+                "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
+                "read_time": round(sum(calculate_read_time_in_hours(p.content) for p in u.parts.all()), 2),
+                 "score": {
+                    "earned": score.earned if score else 0,
+                    "out_of": score.out_of if score else 0,
+                },
             }
             if include_questions:
                 questions = Question.objects.filter(unit=u).prefetch_related('answers').order_by('id')

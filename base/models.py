@@ -122,6 +122,7 @@ class UserInfo(models.Model):
     country = models.ForeignKey(Country, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
     state = models.ForeignKey(State, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
     city = models.ForeignKey(City, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
+    xp = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -236,25 +237,6 @@ class Answer(models.Model):
 
     def __str__(self):
         return f"Answer to Q{self.question_id}: {self.text or self.image}"
-
-
-class Checkpoint(models.Model):
-    id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name='checkpoints')
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='checkpoints')
-    last_unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkpoints')
-
-    class Meta:
-        db_table = 'checkpoint'
-        indexes = [
-            models.Index(fields=['user'], name='idx_checkpoint_user'),
-            models.Index(fields=['subject'], name='idx_checkpoint_subject'),
-        ]
-        unique_together = ('user', 'subject')
-        ordering = ['user']
-
-    def __str__(self):
-        return f"{self.user.name} - {self.subject.name} ({self.last_unit.title if self.last_unit else 'No Unit'})"
 
 class Score(models.Model):
     id = models.AutoField(primary_key=True)

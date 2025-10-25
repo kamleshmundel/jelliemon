@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from config.resp_messages import RM
 from config.resp_middle import api_response
 from myproject.permissions import IsNormalUser
-from base.models import Language, UserInfo, Country, State, City, Checkpoint, Score
+from base.models import Language, UserInfo, Country, State, City, Score, Unit
 from .decorators import require_fields
 from rest_framework import status
 from django.db import models
@@ -13,8 +13,6 @@ from django.db import models
 @permission_classes([IsAuthenticated, IsNormalUser])
 def get_profile(request):
     user = request.user
-
-    print('user >>>>>>>>>>>>>>>>>>>>> ',user.badges)
 
     return api_response({
         "user": {
@@ -35,18 +33,8 @@ def get_profile(request):
             "country": getattr(user.info.country, "name", None),
             "state": user.info.state,
             "city": user.info.city,
+            "xp": user.info.xp
         },
-        "checkpoints": [
-            {
-                "subject_id": cp.subject.id,
-                "last_unit_id": cp.last_unit.id if cp.last_unit else None,
-                "stars": [
-                    {"unit_id": s.unit.id, "stars": s.earned} 
-                    for s in Score.objects.filter(user=user, unit__lesson__subject=cp.subject)
-                ]
-            } for cp in Checkpoint.objects.filter(user=user).select_related('subject', 'last_unit')
-        ],
-
         "stars": {
             "earned": Score.objects.filter(user=user).aggregate(total=models.Sum('earned'))['total'] or 0,
             "total": Score.objects.filter(user=user).aggregate(total=models.Sum('out_of'))['total'] or 0,
@@ -79,6 +67,7 @@ def update_profile(request):
     if 'school' in data: info.school = data['school']
     if 'board' in data: info.board = data['board']
     if 'class' in data: info.user_class = data['class']
+    if 'xp' in data: info.xp = data['xp']
 
     if 'country' in data:
         try: info.country = Country.objects.get(id=data['country'])
@@ -94,3 +83,34 @@ def update_profile(request):
 
     info.save()
     return api_response(None, RM.user.PROFILE_UPDATED, 200)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsNormalUser])
+@require_fields(['unitId', 'earned'])
+def update_progress(request):
+    user = request.user
+    unit_id = request.data.get('unitId')
+    earned = request.data.get('earned')
+    out_of = request.data.get('outOf', 3)
+
+    if not unit_id or earned is None:
+        return api_response(None, RM.common.REQUIRED_FIELDS, status.HTTP_400_BAD_REQUEST)
+
+    try:
+        unit = Unit.objects.get(id=unit_id)
+    except Unit.DoesNotExist:
+        return api_response(None, RM.common.NOT_FOUND, status.HTTP_404_NOT_FOUND)
+
+    score, created = Score.objects.update_or_create(
+        user=user, unit=unit,
+        defaults={'earned': earned, 'out_of': out_of}
+    )
+
+    return api_response({
+        "id": score.id,
+        "user_id": user.id,
+        "unit_id": unit.id,
+        "earned": score.earned,
+        "out_of": score.out_of,
+        "created": created
+    }, RM.common.SUCCESS, status.HTTP_200_OK)
