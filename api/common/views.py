@@ -83,10 +83,40 @@ def subjects_view(request):
 def lessons_view(request):
     if request.method == 'GET':
         subject_id = request.GET.get('subject')
-        qs = Lesson.objects.select_related('subject').all().order_by('title')
+        includesUnits = request.GET.get('includesUnits') == 'true'
+        includesUnitsQue = request.GET.get('includesUnitsQue') == 'true'
+
+        qs = Lesson.objects.select_related('subject').prefetch_related('units__parts').all().order_by('title')
         if subject_id:
             qs = qs.filter(subject_id=subject_id)
-        return paginated_response(qs, request, lambda l: {"id": l.id, "title": l.title, "subject_id": l.subject.id, "subject_title": l.subject.name})
+
+        def serialize_lesson(l):
+            data = {
+                "id": l.id,
+                "title": l.title,
+                "subject_id": l.subject.id,
+                "subject_title": l.subject.name,
+            }
+            if includesUnits:
+                data["units"] = [{
+                    "id": u.id,
+                    "title": u.title,
+                    "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
+                    **({
+                        "questions": [{
+                            "id": q.id,
+                            "title": q.title,
+                            "content": q.content,
+                            "type": q.type,
+                            "asset": q.asset,
+                            "hint": q.hint,
+                            "answers": [{"id": a.id, "text": a.text, "is_correct": a.is_correct, "asset": a.image} for a in q.answers.all()]
+                        } for q in Question.objects.filter(unit=u).prefetch_related('answers')]
+                    } if includesUnitsQue else {})
+                } for u in l.units.all()]
+            return data
+
+        return paginated_response(qs, request, serialize_lesson)
 
     if request.method == 'POST':
         lesson_id = request.data.get('id')
