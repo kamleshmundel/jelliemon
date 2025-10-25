@@ -238,29 +238,42 @@ class Answer(models.Model):
         return f"Answer to Q{self.question_id}: {self.text or self.image}"
 
 
-class Progress(models.Model):
-    STATUS_CHOICES = [
-        ('not_started', 'Not Started'),
-        ('in_progress', 'In Progress'),
-        ('completed', 'Completed'),
-    ]
-
-    user = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name='progress')
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    stars = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    badges = models.JSONField(default=list)
-    last_checkpoint = models.JSONField(null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
+class Checkpoint(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name='checkpoints')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='checkpoints')
+    last_unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkpoints')
 
     class Meta:
-        db_table = 'progress'
-        unique_together = ['user', 'lesson']
+        db_table = 'checkpoint'
+        indexes = [
+            models.Index(fields=['user'], name='idx_checkpoint_user'),
+            models.Index(fields=['subject'], name='idx_checkpoint_subject'),
+        ]
+        unique_together = ('user', 'subject')
+        ordering = ['user']
 
     def __str__(self):
-        return f"{self.user.name} - {self.lesson.title} ({self.status})"
+        return f"{self.user.name} - {self.subject.name} ({self.last_unit.title if self.last_unit else 'No Unit'})"
 
+class Score(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name='scores')
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='scores')
+    earned = models.FloatField(default=0)
+    out_of = models.FloatField(default=0)
+
+    class Meta:
+        db_table = 'score'
+        indexes = [
+            models.Index(fields=['user'], name='idx_score_user'),
+            models.Index(fields=['unit'], name='idx_score_unit'),
+        ]
+        unique_together = ('user', 'unit')
+        ordering = ['unit']
+
+    def __str__(self):
+        return f"{self.user.name} - {self.lesson.title}: {self.earned}/{self.out_of}"
 
 class Badge(models.Model):
     id = models.AutoField(primary_key=True)
@@ -274,6 +287,19 @@ class Badge(models.Model):
     def __str__(self):
         return self.name
 
+class UserBadge(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name='badges')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE, related_name='users')
+    unlocked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_badge'
+        unique_together = ('user', 'badge')
+        ordering = ['-unlocked_at']
+
+    def __str__(self):
+        return f"{self.user.name} - {self.badge.title}"
 
 class Product(models.Model):
     id = models.AutoField(primary_key=True)

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     AppUser, UserInfo, UserState, Subject, Unit, Lesson, Question,
-    Progress, Badge, Product, Event
+    Badge, Product, Event
 )
 
 class AppUserSerializer(serializers.ModelSerializer):
@@ -115,19 +115,6 @@ class SubjectDetailSerializer(serializers.ModelSerializer):
         model = Subject
         fields = ['id', 'board', 'subject_class', 'name', 'units']
         read_only_fields = ['id']
-
-
-class ProgressSerializer(serializers.ModelSerializer):
-    lesson_title = serializers.CharField(source='lesson.title', read_only=True)
-    subject_name = serializers.CharField(source='subject.name', read_only=True)
-    
-    class Meta:
-        model = Progress
-        fields = [
-            'user', 'subject', 'subject_name', 'lesson', 'lesson_title',
-            'status', 'stars', 'badges', 'last_checkpoint', 'updated_at'
-        ]
-        read_only_fields = ['updated_at']
 
 
 class BadgeSerializer(serializers.ModelSerializer):

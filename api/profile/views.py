@@ -4,14 +4,18 @@ from rest_framework.permissions import IsAuthenticated
 from config.resp_messages import RM
 from config.resp_middle import api_response
 from myproject.permissions import IsNormalUser
-from base.models import Language, UserInfo, Country, State, City
+from base.models import Language, UserInfo, Country, State, City, Checkpoint, Score
 from .decorators import require_fields
 from rest_framework import status
+from django.db import models
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsNormalUser])
 def get_profile(request):
     user = request.user
+
+    print('user >>>>>>>>>>>>>>>>>>>>> ',user.badges)
+
     return api_response({
         "user": {
             "id": user.id,
@@ -32,18 +36,28 @@ def get_profile(request):
             "state": user.info.state,
             "city": user.info.city,
         },
-        "checkpoint" : [{
-            "subject_id": 1,
-            "last_lesson_id": 1,
-            "stars": [
-                { "lesson_id": 1, "stars": 2, },
-                { "lesson_id": 2, "stars": 3, },
-            ]
-        }],
+        "checkpoints": [
+            {
+                "subject_id": cp.subject.id,
+                "last_unit_id": cp.last_unit.id if cp.last_unit else None,
+                "stars": [
+                    {"unit_id": s.unit.id, "stars": s.earned} 
+                    for s in Score.objects.filter(user=user, unit__lesson__subject=cp.subject)
+                ]
+            } for cp in Checkpoint.objects.filter(user=user).select_related('subject', 'last_unit')
+        ],
+
         "stars": {
-            "earned": 10,
-            "total": 30,
-        }
+            "earned": Score.objects.filter(user=user).aggregate(total=models.Sum('earned'))['total'] or 0,
+            "total": Score.objects.filter(user=user).aggregate(total=models.Sum('out_of'))['total'] or 0,
+        },
+        "badges": [
+            {
+                "id": b.badge.id,
+                "name": b.badge.name,
+                "unlocked_at": b.unlocked_at,
+            } for b in user.badges.select_related('badge').all()
+        ]
     }, RM.common.SUCCESS, 200)
 
 @api_view(['PUT'])
