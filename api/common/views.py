@@ -85,6 +85,7 @@ def lessons_view(request):
         subject_id = request.GET.get('subject')
         includesUnits = request.GET.get('includesUnits') == 'true'
         includesUnitsQue = request.GET.get('includesUnitsQue') == 'true'
+        user = request.user
 
         qs = Lesson.objects.select_related('subject').prefetch_related('units__parts').all().order_by('title')
         if subject_id:
@@ -98,12 +99,21 @@ def lessons_view(request):
                 "subject_title": l.subject.name,
             }
             if includesUnits:
-                data["units"] = [{
-                    "id": u.id,
-                    "title": u.title,
-                    "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
-                    **({
-                        "questions": [{
+                units_data = []
+                for u in l.units.all():
+                    score = Score.objects.filter(user=user, unit=u).first()
+                    unit_data = {
+                        "id": u.id,
+                        "title": u.title,
+                        "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
+                        "read_time": round(sum(calculate_read_time_in_hours(p.content) for p in u.parts.all()), 2),
+                        "score": {
+                            "earned": score.earned if score else 0,
+                            "out_of": score.out_of if score else 0,
+                        }
+                    }
+                    if includesUnitsQue:
+                        unit_data["questions"] = [{
                             "id": q.id,
                             "title": q.title,
                             "content": q.content,
@@ -112,11 +122,12 @@ def lessons_view(request):
                             "hint": q.hint,
                             "answers": [{"id": a.id, "text": a.text, "is_correct": a.is_correct, "asset": a.image} for a in q.answers.all()]
                         } for q in Question.objects.filter(unit=u).prefetch_related('answers')]
-                    } if includesUnitsQue else {})
-                } for u in l.units.all()]
+                    units_data.append(unit_data)
+                data["units"] = units_data
             return data
 
         return paginated_response(qs, request, serialize_lesson)
+
 
     if request.method == 'POST':
         lesson_id = request.data.get('id')
