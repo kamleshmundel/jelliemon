@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson, Question
+from base.models import Country, State, City, Language, Subject, Unit, UnitPart, Lesson, Question, Badge
 from config.resp_middle import paginated_response
 from config.resp_messages import RM
 from myproject.permissions import IsNormalUser, IsAdmin
@@ -210,3 +210,17 @@ def units_view(request):
             return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)
         except Unit.DoesNotExist:
             return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def badges_view(request):
+    if request.method == 'GET':
+        badges = Badge.objects.all().order_by('name')
+        data = [{"id": b.id, "name": b.name, } for b in badges]
+        return api_response(data, RM.common.SUCCESS, status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)
+
+    if request.method == 'DELETE':
+        return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)

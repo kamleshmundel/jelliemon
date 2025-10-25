@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import get_countries, get_states, get_cities, get_languages, subjects_view, units_view, lessons_view
+from .views import get_countries, get_states, get_cities, get_languages, subjects_view, units_view, lessons_view, badges_view
 
 urlpatterns = [
   path('/countries', get_countries),
@@ -9,4 +9,5 @@ urlpatterns = [
   path('/subjects', subjects_view),
   path('/lessons', lessons_view),
   path('/units', units_view),
+  path('/badges', badges_view),
 ]
