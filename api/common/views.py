@@ -108,8 +108,8 @@ def lessons_view(request):
                         "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
                         "read_time": round(sum(calculate_read_time_in_hours(p.content) for p in u.parts.all()), 2),
                         "score": {
-                            "earned": score.earned if score else 0,
-                            "out_of": score.out_of if score else 0,
+                            "earned": int(score.earned) if score else 0,
+                            "out_of": int(score.out_of) if score else 0,
                         }
                     }
                     if includesUnitsQue:
@@ -186,8 +186,8 @@ def units_view(request):
                 "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
                 "read_time": round(sum(calculate_read_time_in_hours(p.content) for p in u.parts.all()), 2),
                  "score": {
-                    "earned": score.earned if score else 0,
-                    "out_of": score.out_of if score else 0,
+                    "earned": int(score.earned) if score else 0,
+                    "out_of": int(score.out_of) if score else 0,
                 },
             }
             if include_questions:

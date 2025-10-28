@@ -33,11 +33,11 @@ def get_profile(request):
             "country": getattr(user.info.country, "name", None),
             "state": getattr(user.info.state, "name", None),
             "city": getattr(user.info.city, "name", None),
-            "xp": user.info.xp
+            "xp": int(user.info.xp)
         },
         "stars": {
-            "earned": Score.objects.filter(user=user).aggregate(total=models.Sum('earned'))['total'] or 0,
-            "total": Score.objects.filter(user=user).aggregate(total=models.Sum('out_of'))['total'] or 0,
+            "earned": int(Score.objects.filter(user=user).aggregate(total=models.Sum('earned'))['total'] or 0),
+            "total": int(Score.objects.filter(user=user).aggregate(total=models.Sum('out_of'))['total'] or 0),
         },
         "badges": [
             {
