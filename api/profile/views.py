@@ -63,10 +63,9 @@ def update_profile(request):
     user.save()
 
     info, _ = UserInfo.objects.get_or_create(user=user)
-
     if 'school' in data: info.school = data['school']
     if 'board' in data: info.board = data['board']
-    if 'class' in data: info.user_class = data['current_class']
+    if 'current_class' in data: info.user_class = data['current_class']
     if 'xp' in data: info.xp = data['xp']
 
     if 'country' in data:

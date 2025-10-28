@@ -118,7 +118,7 @@ class UserInfo(models.Model):
     user = models.OneToOneField(AppUser, on_delete=models.CASCADE, related_name='info')
     school = models.CharField(max_length=255, null=True, blank=True)
     board = models.CharField(max_length=255, null=True, blank=True)
-    user_class = models.CharField(max_length=50, null=True, blank=True, db_column='class')
+    user_class = models.CharField(max_length=50, null=True, blank=True, db_column='user_class')
     country = models.ForeignKey(Country, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
     state = models.ForeignKey(State, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
     city = models.ForeignKey(City, null=True, blank=True, on_delete=models.SET_NULL, related_name='user_infos')
