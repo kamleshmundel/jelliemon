@@ -190,6 +190,7 @@ class UnitPart(models.Model):
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='parts')
     title = models.TextField()
     content = models.TextField()
+    audio = models.ImageField(upload_to='audio/', null=True, blank=True)
 
     class Meta:
         db_table = 'unit_parts'
@@ -211,7 +212,7 @@ class Question(models.Model):
     title = models.CharField(max_length=255)
     content = models.TextField()
     type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='mcq')
-    asset = models.URLField(max_length=500, null=True, blank=True)
+    asset = models.ImageField(upload_to='questions/', null=True, blank=True)
     option_images = models.BooleanField(default=False)
     hint = models.TextField(null=True, blank=True)
 
@@ -227,7 +228,7 @@ class Answer(models.Model):
     id = models.AutoField(primary_key=True)
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answers')
     text = models.TextField(null=True, blank=True)
-    image = models.URLField(max_length=500, null=True, blank=True)
+    image = models.ImageField(upload_to='answers/', null=True, blank=True)
     is_correct = models.BooleanField(default=False)
 
     class Meta:

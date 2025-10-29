@@ -26,6 +26,8 @@ class CommonMessages:
     STATE_FOUND = "State not found."
     CITY_FOUND = "City not found."
 
+    SOMETHING_WRONG = "Something went wrong."
+
 class AdminMessages:
     ADMIN_NOT_FOUND = "Admin not found."
     OTP_SENT = "OTP sent to admin email."

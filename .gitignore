@@ -4,3 +4,6 @@ venv
 social-auth.html
 
 __pycache__/
+
+gcp-service-account.json
+service-account-key.json
