@@ -33,11 +33,11 @@ def get_profile(request):
             "country": getattr(user.info.country, "name", None),
             "state": getattr(user.info.state, "name", None),
             "city": getattr(user.info.city, "name", None),
-            "xp": user.info.xp
+            "xp": int(user.info.xp)
         },
         "stars": {
-            "earned": Score.objects.filter(user=user).aggregate(total=models.Sum('earned'))['total'] or 0,
-            "total": Score.objects.filter(user=user).aggregate(total=models.Sum('out_of'))['total'] or 0,
+            "earned": int(Score.objects.filter(user=user).aggregate(total=models.Sum('earned'))['total'] or 0),
+            "total": int(Score.objects.filter(user=user).aggregate(total=models.Sum('out_of'))['total'] or 0),
         },
         "badges": [
             {
@@ -63,10 +63,9 @@ def update_profile(request):
     user.save()
 
     info, _ = UserInfo.objects.get_or_create(user=user)
-
     if 'school' in data: info.school = data['school']
     if 'board' in data: info.board = data['board']
-    if 'class' in data: info.user_class = data['current_class']
+    if 'current_class' in data: info.user_class = data['current_class']
     if 'xp' in data: info.xp = data['xp']
 
     if 'country' in data:
