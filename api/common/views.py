@@ -262,7 +262,7 @@ def units_view(request):
             if not part_title and not part_content:
                 break  # Stop when no more parts found
 
-            if part_title and part_content:
+            if part_content:
                 part = UnitPart.objects.create(
                     unit=unit,
                     title=part_title,
@@ -302,7 +302,7 @@ def units_view(request):
         unit_parts = UnitPart.objects.filter(unit=unit)
         for part in unit_parts:
             # Assuming 'audio' is the field storing the audio file URL in GCP
-            delete_audio_from_gcp(part.audio.url.replace(settings.MEDIA_URL, ""))
+            if part.audio: delete_audio_from_gcp(part.audio.url.replace(settings.MEDIA_URL, ""))
 
         unit.delete()  # Cascade delete will remove UnitPart due to on_delete=models.CASCADE
         return api_response({"id": unit_id}, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)
