@@ -105,7 +105,11 @@ def lessons_view(request):
                     unit_data = {
                         "id": u.id,
                         "title": u.title,
-                        "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
+                        "parts": [{
+                            "id": p.id, "title": p.title, "content": p.content,
+                            "audio": p.audio.url if p.audio else None,
+
+                        } for p in u.parts.all()],
                         "read_time": round(sum(calculate_read_time_in_hours(p.content) for p in u.parts.all()), 2),
                         "score": {
                             "earned": int(score.earned) if score else 0,
@@ -183,7 +187,10 @@ def units_view(request):
                 "title": u.title,
                 "lesson_id": u.lesson.id,
                 "lesson_name": u.lesson.title,
-                "parts": [{"id": p.id, "title": p.title, "content": p.content} for p in u.parts.all()],
+                "parts": [{
+                    "id": p.id, "title": p.title, "content": p.content,
+                    "audio": p.audio.url if p.audio else None,
+                } for p in u.parts.all()],
                 "read_time": round(sum(calculate_read_time_in_hours(p.content) for p in u.parts.all()), 2),
                  "score": {
                     "earned": int(score.earned) if score else 0,
@@ -244,8 +251,6 @@ def units_view(request):
             part_content = request.data.get(content_key)
             part_audio = request.FILES.get(audio_key)
 
-            print('part_audio >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ', part_audio)
-
             if not part_title and not part_content:
                 break  # Stop when no more parts found
 
@@ -269,11 +274,25 @@ def units_view(request):
                 {
                     "title": p.title,
                     "content": p.content,
-                    "audio_url": p.audio.url if p.audio else None
+                    "audio": p.audio.url if p.audio else None,
                 }
                 for p in unit.parts.all()
             ]
         }, RM.common.SUCCESS, status.HTTP_200_OK if unit_id else status.HTTP_201_CREATED)
+
+    if request.method == 'DELETE':
+        unit_id = request.GET.get('id') or request.data.get('id')
+        if not unit_id:
+            return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            unit = Unit.objects.get(id=unit_id)
+        except Unit.DoesNotExist:
+            return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+
+        unit.delete()  # Cascade delete will remove UnitPart due to on_delete=models.CASCADE
+        return api_response({"id": unit_id}, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)
+
 
 
     # if request.method == 'POST':

@@ -28,6 +28,8 @@ class CommonMessages:
 
     SOMETHING_WRONG = "Something went wrong."
 
+    DELETED_SUCCESSFULLY = "Deleted ssuccessfully."
+
 class AdminMessages:
     ADMIN_NOT_FOUND = "Admin not found."
     OTP_SENT = "OTP sent to admin email."
