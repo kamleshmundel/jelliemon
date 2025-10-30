@@ -53,6 +53,7 @@ class AdminMessages:
 
     # question
     QUE_ADDED = "Question added successfully."
+    NO_QUE = "Question not found."
 
 class UserMessages:
     OTP_SENT_EMAIL = "OTP sent to your email."

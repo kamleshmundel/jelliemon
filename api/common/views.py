@@ -267,7 +267,7 @@ def units_view(request):
             part_content = request.data.get(content_key)
             part_audio = request.FILES.get(audio_key)
 
-            if not part_title and not part_content:
+            if not part_content:
                 break  # Stop when no more parts are found
 
             # Create or update parts
@@ -313,7 +313,7 @@ def units_view(request):
         try:
             unit = Unit.objects.get(id=unit_id)
         except Unit.DoesNotExist:
-            return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+            return api_response(None, RM.admin.NO_UNIT, status=status.HTTP_404_NOT_FOUND)
         
         # Delete audio files from the UnitParts related to the unit
         unit_parts = UnitPart.objects.filter(unit=unit)
@@ -322,7 +322,7 @@ def units_view(request):
             if part.audio: delete_audio_from_gcp(part.audio.url.replace(settings.MEDIA_URL, ""))
 
         unit.delete()  # Cascade delete will remove UnitPart due to on_delete=models.CASCADE
-        return api_response({"id": unit_id}, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)
+        return api_response(None, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)
 
 
 

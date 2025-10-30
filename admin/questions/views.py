@@ -12,11 +12,14 @@ from rest_framework import status
 @permission_classes([IsAuthenticated])
 def questions_view(request):
     if request.method == 'GET':
-
+        que_id = request.GET.get('queId')
         unit_id = request.GET.get('unit_id')
         qs = Question.objects.select_related('unit').prefetch_related('answers').all().order_by('id')
         if unit_id:
             qs = qs.filter(unit_id=unit_id)
+        
+        if que_id:
+            qs = qs.filter(id=que_id)
 
         def serialize_question(q):
             return {
@@ -40,102 +43,126 @@ def questions_view(request):
             }
 
         return paginated_response(qs, request, serialize_question)
-        # unit_id = request.GET.get('unit_id')
-        # qs = Question.objects.select_related('unit').prefetch_related('answers').all().order_by('id')
-        # if unit_id:
-        #     qs = qs.filter(unit_id=unit_id)
-        # return paginated_response(qs, request, lambda q: {
-        #     "id": q.id,
-        #     "title": q.title,
-        #     "content": q.content,
-        #     "type": q.type,
-        #     "asset": q.asset,
-        #     "option_images": q.option_images,
-        #     "hint": q.hint,
-        #     "unit_id": q.unit.id,
-        #     "unit_title": q.unit.title,
-        #     "answers": [{"id": a.id, "text": a.text, "image": a.image, "is_correct": a.is_correct} for a in q.answers.all()]
-        # })
 
     if request.method == 'POST':
-
         try:
+            que_id = request.data.get('id')  # Question ID for updating
             unit_id = request.data.get('unit')
+
+            # Check for required fields
             if not unit_id or not request.data.get('title'):
                 return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
 
+            # Check if unit exists
             try:
                 unit = Unit.objects.get(id=unit_id)
             except Unit.DoesNotExist:
                 return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
-            
+
+            # Handle optionImages (string -> boolean conversion)
             option_images_raw = request.data.get('optionImage', False)
             option_images = str(option_images_raw).lower() in ['true', '1']
 
+            # If que_id exists, update the existing question, else create a new one
+            if que_id:
+                try:
+                    # Update existing question
+                    question = Question.objects.get(id=que_id)
+                    question.unit = unit
+                    question.title = request.data.get('title')
+                    question.content = request.data.get('content', '')
+                    question.type = request.data.get('type', 'mcq')
+                    question.asset = request.FILES.get('asset', question.asset)  # Retain existing asset if not provided
+                    question.option_images = option_images
+                    question.hint = request.data.get('hint', question.hint)  # Retain existing hint if not provided
+                    question.save()
+                except Question.DoesNotExist:
+                    return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+            else:
+                # If que_id does not exist, create a new question
+                question = Question.objects.create(
+                    unit=unit,
+                    title=request.data.get('title'),
+                    content=request.data.get('content', ''),
+                    type=request.data.get('type', 'mcq'),
+                    asset=request.FILES.get('asset'),
+                    option_images=option_images,
+                    hint=request.data.get('hint', '')
+                )
 
-            question = Question.objects.create(
-                unit=unit,
-                title=request.data.get('title'),
-                content=request.data.get('content', ''),
-                type=request.data.get('type', 'mcq'),
-                asset=request.FILES.get('asset'),
-                option_images=option_images,
-                hint=request.data.get('hint', '')
-            )
+            # Track existing answers
+            existing_answers = {answer.text: answer for answer in Answer.objects.filter(question=question)}
 
-            options = request.data.getlist('options') or []
-            for i, _ in enumerate(options):
-                text = request.data.get(f'options[{i}][text]', '')
-                is_correct_raw = request.data.get(f'options[{i}][is_correct]', False)
-                is_correct = str(is_correct_raw).lower() in ['true', '1']  # ensures boolean
-                image = request.FILES.get(f'options[{i}][image]')
-                print('is_correct >>>>>>>>>>>>>>>>>>>>> ',is_correct)
-                Answer.objects.create(question=question, text=text, image=image, is_correct=is_correct)
+            # Now, handle options (answers)
+            index = 0
+            received_answers = []  # To keep track of answers that are being sent
 
+            while True:
+                text_key = f"options[{index}][text]"
+                correct_key = f"options[{index}][is_correct]"
+                img_key = f"options[{index}][image]"
 
-            return api_response({'id': question.id}, RM.admin.QUE_ADDED, status.HTTP_201_CREATED)
+                ans_text = request.data.get(text_key)
+                ans_correct = request.data.get(correct_key) in ['true', 'True', '1']
+                ans_img = request.FILES.get(img_key)
+
+                if not ans_text:
+                    break  # Break when no more options are provided
+
+                # Add to received answers
+                received_answers.append(ans_text)
+
+                # If it's an update (que_id exists), check if the option already exists
+                if que_id:
+                    if ans_text in existing_answers:
+                        # Update the existing answer
+                        answer = existing_answers[ans_text]
+                        answer.text = ans_text
+                        answer.is_correct = ans_correct
+                        if ans_img:
+                            answer.image = ans_img
+                        answer.save()
+                        # Remove from existing_answers to keep track of deleted options later
+                        del existing_answers[ans_text]
+                    else:
+                        # Create new answer if it doesn't exist
+                        if ans_img:
+                            Answer.objects.create(question=question, text=ans_text, image=ans_img, is_correct=ans_correct)
+                        else:
+                            Answer.objects.create(question=question, text=ans_text, is_correct=ans_correct)
+
+                else:
+                    # If creating a new question, create new options
+                    if ans_img:
+                        Answer.objects.create(question=question, text=ans_text, image=ans_img, is_correct=ans_correct)
+                    else:
+                        Answer.objects.create(question=question, text=ans_text, is_correct=ans_correct)
+
+                index += 1
+
+            # After processing all incoming answers, delete the options that were not received
+            for text, answer in existing_answers.items():
+                answer.delete()
+
+            # Return success response
+            return api_response({'id': question.id}, RM.admin.QUE_ADDED, status.HTTP_201_CREATED if not que_id else status.HTTP_200_OK)
 
         except Exception as e:
+            # Return error response if an exception occurs
             return api_response({'error': str(e)}, RM.common.SOMETHING_WRONG, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # question_data = {
-        #     "unit_id": request.data.get("unit"),
-        #     "title": request.data.get("title"),
-        #     "content": request.data.get("content"),
-        #     "type": request.data.get("type"),
-        #     "asset": request.data.get("asset"),
-        #     "option_images": request.data.get("optionImage", False),
-        #     "hint": request.data.get("hint"),
-        # }
+    
+    
 
-        # options = request.data.get("options", [])
-        # answers = [*options] if isinstance(options, (list, tuple, set)) else [options]
+    if request.method == 'DELETE':
+        que_id = request.GET.get('id') or request.data.get('id')
+        if not que_id:
+            return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
 
-        # unit_id = question_data["unit_id"]
-        # if not unit_id or not question_data["title"]:
-        #     return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
-
-        # try:
-        #     unit = Unit.objects.get(id=unit_id)
-        # except Unit.DoesNotExist:
-        #     return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
-
-        # question = Question.objects.create(
-        #     unit=unit,
-        #     title=question_data["title"],
-        #     content=question_data["content"],
-        #     type=question_data["type"],
-        #     asset=question_data["asset"],
-        #     option_images=question_data["option_images"],
-        #     hint=question_data["hint"]
-        # )
-
-        # for ans in answers:
-        #     Answer.objects.create(
-        #         question=question,
-        #         text=ans.get("text"),
-        #         image=ans.get("image"),
-        #         is_correct=ans.get("is_correct", False)
-        #     )
-
-        # return api_response({"id": question.id}, RM.admin.QUE_ADDED, status.HTTP_201_CREATED)
+        try:
+            question = Question.objects.get(id=que_id)
+        except Question.DoesNotExist:
+            return api_response(None, RM.admin.NO_QUE, status=status.HTTP_404_NOT_FOUND)
+        
+        question.delete()  # Cascade delete will remove UnitPart due to on_delete=models.CASCADE
+        return api_response(None, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)
