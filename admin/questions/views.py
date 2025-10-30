@@ -8,6 +8,9 @@ from myproject.permissions import IsNormalUser, IsAdmin
 from config.resp_middle import api_response
 from rest_framework import status
 
+from config.gcp import delete_audio_from_gcp
+from django.conf import settings
+
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def questions_view(request):
@@ -32,6 +35,7 @@ def questions_view(request):
                 "hint": q.hint,
                 "unit_id": q.unit.id,
                 "unit_title": q.unit.title,
+                "audio": q.audio.url if q.audio else None,
                 "answers": [
                     {
                         "id": a.id,
@@ -63,6 +67,19 @@ def questions_view(request):
             option_images_raw = request.data.get('optionImage', False)
             option_images = str(option_images_raw).lower() in ['true', '1']
 
+            deleted_audio_urls = request.data.get('deletedAudio')  # Frontend sends array of full URLs
+
+            # Check if it's a single string, and split it if necessary
+            if deleted_audio_urls:
+                if isinstance(deleted_audio_urls, str):
+                    deleted_audio_urls = deleted_audio_urls.split(',')
+
+            # Delete audio URLs from GCP if any
+            if deleted_audio_urls:
+                for url in deleted_audio_urls:
+                    delete_audio_from_gcp(url.replace(settings.MEDIA_URL, ""))
+
+
             # If que_id exists, update the existing question, else create a new one
             if que_id:
                 try:
@@ -75,10 +92,29 @@ def questions_view(request):
                     question.asset = request.FILES.get('asset', question.asset)  # Retain existing asset if not provided
                     question.option_images = option_images
                     question.hint = request.data.get('hint', question.hint)  # Retain existing hint if not provided
+
+                    # Fetch audio from request
+                    audio = request.FILES.get('audio')
+
+                    # If the current audio exists and it is in the deleted_audio_urls, delete the existing audio
+                    if question.audio and question.audio.url in deleted_audio_urls:
+                        # If the URL of the current audio is in the deleted list, set the audio field to None
+                        question.audio.delete()  # Deleting the audio file from storage
+                        question.audio = None
+
+                    # If a new audio file is provided, set the audio field to the new file
+                    if audio:
+                        question.audio = audio
+
+                    # Save the updated question
                     question.save()
+
                 except Question.DoesNotExist:
                     return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
             else:
+
+                audio = request.FILES.get('audio')
+
                 # If que_id does not exist, create a new question
                 question = Question.objects.create(
                     unit=unit,
@@ -87,7 +123,8 @@ def questions_view(request):
                     type=request.data.get('type', 'mcq'),
                     asset=request.FILES.get('asset'),
                     option_images=option_images,
-                    hint=request.data.get('hint', '')
+                    hint=request.data.get('hint', ''),
+                    audio=audio
                 )
 
             # Track existing answers
@@ -163,6 +200,8 @@ def questions_view(request):
             question = Question.objects.get(id=que_id)
         except Question.DoesNotExist:
             return api_response(None, RM.admin.NO_QUE, status=status.HTTP_404_NOT_FOUND)
+
+        if question.audio: delete_audio_from_gcp(question.audio.url.replace(settings.MEDIA_URL, ""))
         
         question.delete()  # Cascade delete will remove UnitPart due to on_delete=models.CASCADE
         return api_response(None, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)

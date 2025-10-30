@@ -215,6 +215,7 @@ class Question(models.Model):
     asset = models.ImageField(upload_to='questions/', null=True, blank=True)
     option_images = models.BooleanField(default=False)
     hint = models.TextField(null=True, blank=True)
+    audio = models.FileField(upload_to='audio/', null=True, blank=True)  # Changed to FileField
 
     class Meta:
         db_table = 'question'
