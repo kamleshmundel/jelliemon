@@ -8,6 +8,8 @@ from myproject.permissions import IsNormalUser, IsAdmin
 from config.resp_middle import api_response
 from rest_framework import status
 from config.helpers import calculate_read_time_in_hours
+from config.gcp import delete_audio_from_gcp
+from django.conf import settings
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -216,6 +218,7 @@ def units_view(request):
         unit_id = request.data.get('id')
         title = request.data.get('title')
         lesson_id = request.data.get('lessonId')
+        deleted_audio_urls = request.data.getlist('deletedAudio[]')  # Frontend sends array of full URLs
 
         if not title or not lesson_id:
             return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
@@ -238,6 +241,11 @@ def units_view(request):
                 return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
         else:
             unit = Unit.objects.create(title=title, lesson=lesson)
+
+        if deleted_audio_urls:
+            for url in deleted_audio_urls:
+                # Use the delete_audio_from_gcp function to handle deletion
+                delete_audio_from_gcp(url.replace(settings.MEDIA_URL, ""))
 
         # --- Parse FormData dynamic fields like parts[0].title, parts[0].audio, etc. ---
         parts = []
@@ -289,6 +297,12 @@ def units_view(request):
             unit = Unit.objects.get(id=unit_id)
         except Unit.DoesNotExist:
             return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+        
+        # Delete audio files from the UnitParts related to the unit
+        unit_parts = UnitPart.objects.filter(unit=unit)
+        for part in unit_parts:
+            # Assuming 'audio' is the field storing the audio file URL in GCP
+            delete_audio_from_gcp(part.audio.url.replace(settings.MEDIA_URL, ""))
 
         unit.delete()  # Cascade delete will remove UnitPart due to on_delete=models.CASCADE
         return api_response({"id": unit_id}, RM.common.DELETED_SUCCESSFULLY, status=status.HTTP_200_OK)
