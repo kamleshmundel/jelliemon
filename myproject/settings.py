@@ -196,16 +196,32 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
 BREACH_OTP = config('BREACH_OTP', cast=bool, default=True)
 
-GS_BUCKET_NAME = 'jelliemon'
+
+
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+GS_BUCKET_NAME = "jelliemon"
+GS_DEFAULT_ACL = None  # 👈 Required for uniform bucket-level access
+GS_FILE_OVERWRITE = False
+GS_QUERYSTRING_AUTH = False  # 👈 For public access via IAM
+
+import os
+from google.oauth2 import service_account
+
 GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
-    os.path.join(BASE_DIR, 'gcp-service-account.json')
+    os.path.join(BASE_DIR, "service-account-key.json")
 )
 
-DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
-GS_DEFAULT_ACL = 'publicRead'
-MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
+MEDIA_URL = f"https://storage.googleapis.com/{GS_BUCKET_NAME}/"
 
-GOOGLE_SERVICE_ACCOUNT_KEY = BASE_DIR / 'service-account-key.json'
+GOOGLE_SERVICE_ACCOUNT_KEY = os.path.join(BASE_DIR, "service-account-key.json")
 
-# MEDIA_URL = '/media/'
-# MEDIA_ROOT = BASE_DIR / 'media'
+GOOGLE_APPLICATION_CREDENTIALS = GOOGLE_SERVICE_ACCOUNT_KEY

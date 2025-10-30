@@ -205,60 +205,130 @@ def units_view(request):
 
         return paginated_response(qs, request, serialize_unit)
 
-
     if request.method == 'POST':
         unit_id = request.data.get('id')
         title = request.data.get('title')
         lesson_id = request.data.get('lessonId')
-        parts = request.data.get('parts', [])
 
         if not title or not lesson_id:
             return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate lesson
         try:
             lesson = Lesson.objects.get(id=lesson_id)
         except Lesson.DoesNotExist:
             return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
 
+        # Create or update unit
         if unit_id:
             try:
                 unit = Unit.objects.get(id=unit_id)
-                unit.title, unit.lesson = title, lesson
+                unit.title = title
+                unit.lesson = lesson
                 unit.save()
-                unit.parts.all().delete()
-                for p in parts:
-                    if p.get('title') and p.get('content'):
-                        UnitPart.objects.create(unit=unit, title=p['title'], content=p['content'])
-                return api_response({
-                    "id": unit.id,
-                    "title": unit.title,
-                    "lesson_id": lesson.id,
-                    "lesson_name": lesson.title,
-                    "parts": [{"title": p.title, "content": p.content} for p in unit.parts.all()]
-                }, RM.common.SUCCESS, status.HTTP_200_OK)
+                unit.parts.all().delete()  # Recreate parts for simplicity
             except Unit.DoesNotExist:
                 return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
         else:
             unit = Unit.objects.create(title=title, lesson=lesson)
-            for p in parts:
-                if p.get('title') and p.get('content'):
-                    UnitPart.objects.create(unit=unit, title=p['title'], content=p['content'])
-            return api_response({
-                "id": unit.id,
-                "title": unit.title,
-                "lesson_id": lesson.id,
-                "lesson_name": lesson.title,
-                "parts": [{"title": p.title, "content": p.content} for p in unit.parts.all()]
-            }, RM.common.SUCCESS, status.HTTP_201_CREATED)
+
+        # --- Parse FormData dynamic fields like parts[0].title, parts[0].audio, etc. ---
+        parts = []
+        index = 0
+        while True:
+            title_key = f"parts[{index}].title"
+            content_key = f"parts[{index}].content"
+            audio_key = f"parts[{index}].audio"
+
+            part_title = request.data.get(title_key)
+            part_content = request.data.get(content_key)
+            part_audio = request.FILES.get(audio_key)
+
+            print('part_audio >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ', part_audio)
+
+            if not part_title and not part_content:
+                break  # Stop when no more parts found
+
+            if part_title and part_content:
+                part = UnitPart.objects.create(
+                    unit=unit,
+                    title=part_title,
+                    content=part_content,
+                    audio=part_audio
+                )
+                parts.append(part)
+            index += 1
+
+        # --- Response ---
+        return api_response({
+            "id": unit.id,
+            "title": unit.title,
+            "lesson_id": lesson.id,
+            "lesson_name": lesson.title,
+            "parts": [
+                {
+                    "title": p.title,
+                    "content": p.content,
+                    "audio_url": p.audio.url if p.audio else None
+                }
+                for p in unit.parts.all()
+            ]
+        }, RM.common.SUCCESS, status.HTTP_200_OK if unit_id else status.HTTP_201_CREATED)
 
 
-    if request.method == 'DELETE':
-        unit_id = request.GET.get('id') or request.data.get('id')
-        try:
-            unit = Unit.objects.get(id=unit_id)
-            unit.delete()
-            return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)
-        except Unit.DoesNotExist:
-            return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+    # if request.method == 'POST':
+    #     unit_id = request.data.get('id')
+    #     title = request.data.get('title')
+    #     lesson_id = request.data.get('lessonId')
+    #     parts = request.data.get('parts', [])
+
+    #     if not title or not lesson_id:
+    #         return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+    #     try:
+    #         lesson = Lesson.objects.get(id=lesson_id)
+    #     except Lesson.DoesNotExist:
+    #         return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
+
+    #     if unit_id:
+    #         try:
+    #             unit = Unit.objects.get(id=unit_id)
+    #             unit.title, unit.lesson = title, lesson
+    #             unit.save()
+    #             unit.parts.all().delete()
+    #             for p in parts:
+    #                 if p.get('title') and p.get('content'):
+    #                     UnitPart.objects.create(unit=unit, title=p['title'], content=p['content'])
+    #             return api_response({
+    #                 "id": unit.id,
+    #                 "title": unit.title,
+    #                 "lesson_id": lesson.id,
+    #                 "lesson_name": lesson.title,
+    #                 "parts": [{"title": p.title, "content": p.content} for p in unit.parts.all()]
+    #             }, RM.common.SUCCESS, status.HTTP_200_OK)
+    #         except Unit.DoesNotExist:
+    #             return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+    #     else:
+    #         unit = Unit.objects.create(title=title, lesson=lesson)
+    #         for p in parts:
+    #             if p.get('title') and p.get('content'):
+    #                 UnitPart.objects.create(unit=unit, title=p['title'], content=p['content'])
+    #         return api_response({
+    #             "id": unit.id,
+    #             "title": unit.title,
+    #             "lesson_id": lesson.id,
+    #             "lesson_name": lesson.title,
+    #             "parts": [{"title": p.title, "content": p.content} for p in unit.parts.all()]
+    #         }, RM.common.SUCCESS, status.HTTP_201_CREATED)
+
+
+    # if request.method == 'DELETE':
+    #     unit_id = request.GET.get('id') or request.data.get('id')
+    #     try:
+    #         unit = Unit.objects.get(id=unit_id)
+    #         unit.delete()
+    #         return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)
+    #     except Unit.DoesNotExist:
+    #         return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])

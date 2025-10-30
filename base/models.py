@@ -190,7 +190,7 @@ class UnitPart(models.Model):
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='parts')
     title = models.TextField()
     content = models.TextField()
-    audio = models.ImageField(upload_to='audio/', null=True, blank=True)
+    audio = models.FileField(upload_to='audio/', null=True, blank=True)  # Changed to FileField
 
     class Meta:
         db_table = 'unit_parts'
