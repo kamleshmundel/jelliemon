@@ -125,7 +125,7 @@ def auth_handler(request):
             except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
             if not u.is_verified: return api_response(None, RM.common.EMAIL_NOT_VERIFIED, 403)
             u.password = make_password(pwd); u.save()
-            return api_response(None, RM.user.PASSWORD_SET_SUCCESS, 200)
+            return api_response(generate_tokens(u, AppUserSerializer), RM.user.PASSWORD_SET_SUCCESS, 200)
 
     if action == 'signup' and mode == 'mobile':
         step, mobile = request.data.get('step', 'send_otp'), request.data.get('mobile')
