@@ -218,7 +218,12 @@ def units_view(request):
         unit_id = request.data.get('id')
         title = request.data.get('title')
         lesson_id = request.data.get('lessonId')
-        deleted_audio_urls = request.data.getlist('deletedAudio[]')  # Frontend sends array of full URLs
+        deleted_audio_urls = request.data.get('deletedAudio')  # Frontend sends array of full URLs
+
+        # Check if it's a single string, and split it if necessary
+        if deleted_audio_urls:
+            if isinstance(deleted_audio_urls, str):
+                deleted_audio_urls = deleted_audio_urls.split(',')
 
         if not title or not lesson_id:
             return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
@@ -233,21 +238,24 @@ def units_view(request):
         if unit_id:
             try:
                 unit = Unit.objects.get(id=unit_id)
-                unit.title = title
-                unit.lesson = lesson
+                unit.title = title  # Update title
+                unit.lesson = lesson  # Update lesson
                 unit.save()
-                unit.parts.all().delete()  # Recreate parts for simplicity
+
+                # Handle UnitParts (this is a simplified approach)
+                unit.parts.all().delete()  # Remove all existing parts
+
             except Unit.DoesNotExist:
                 return api_response(None, RM.common.NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
         else:
             unit = Unit.objects.create(title=title, lesson=lesson)
 
+        # Delete audio URLs from GCP if any
         if deleted_audio_urls:
             for url in deleted_audio_urls:
-                # Use the delete_audio_from_gcp function to handle deletion
                 delete_audio_from_gcp(url.replace(settings.MEDIA_URL, ""))
 
-        # --- Parse FormData dynamic fields like parts[0].title, parts[0].audio, etc. ---
+        # Parse the dynamic fields for unit parts (parts[0].title, parts[0].content, parts[0].audio, etc.)
         parts = []
         index = 0
         while True:
@@ -260,19 +268,28 @@ def units_view(request):
             part_audio = request.FILES.get(audio_key)
 
             if not part_title and not part_content:
-                break  # Stop when no more parts found
+                break  # Stop when no more parts are found
 
-            if part_content:
+            # Create or update parts
+            if part_audio:  # New audio is uploaded
                 part = UnitPart.objects.create(
                     unit=unit,
                     title=part_title,
                     content=part_content,
                     audio=part_audio
                 )
-                parts.append(part)
+            else:
+                # No new audio, just update the text fields (title, content)
+                part = UnitPart.objects.create(
+                    unit=unit,
+                    title=part_title,
+                    content=part_content
+                )
+            
+            parts.append(part)
             index += 1
 
-        # --- Response ---
+        # Response with the updated unit information
         return api_response({
             "id": unit.id,
             "title": unit.title,
