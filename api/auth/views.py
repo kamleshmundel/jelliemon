@@ -87,7 +87,7 @@ def auth_handler(request):
         if step == 'send_otp':
             u, _ = AppUser.objects.get_or_create(email=email)
             state, _ = UserState.objects.get_or_create(user=u)
-            if u.is_verified: return api_response(None, RM.user.OTP_VERIFIED, 200)
+            if u.is_verified: return api_response(None, RM.user.ALREADY_VERIFIED, 200)
             state.otp, u.is_verified = generate_otp(), False
             state.save(); u.save()
             print(f"OTP to {email}: {state.otp}")

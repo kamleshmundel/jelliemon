@@ -58,6 +58,7 @@ class AdminMessages:
 class UserMessages:
     OTP_SENT_EMAIL = "OTP sent to your email."
     OTP_SENT_MOBILE = "OTP sent to your mobile number."
+    ALREADY_VERIFIED = "Already verified."
     OTP_VERIFIED = "OTP verified successfully."
     MOBILE_VERIFIED = "Mobile verified successfully."
     PASSWORD_SET_SUCCESS = "Password set successfully."
