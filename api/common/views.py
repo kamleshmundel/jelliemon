@@ -209,7 +209,10 @@ def units_view(request):
                     "asset": q.asset.url if q.asset else None,
                     "audio": q.audio.url if q.audio else None,
                     "hint": q.hint,
-                    "answers": [{"id": a.id, "text": a.text, "is_correct": a.is_correct, "asset": a.image} for a in q.answers.all()]
+                    "answers": [{
+                        "id": a.id, "text": a.text, "is_correct": a.is_correct,
+                        "asset": a.image.url if a.image else None
+                    } for a in q.answers.all()]
                 } for q in questions]
             return data
 
