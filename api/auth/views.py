@@ -62,23 +62,25 @@ def auth_handler(request):
         return api_response(generate_tokens(u, AppUserSerializer), RM.user.LOGIN_SUCCESS, 200)
 
     if action == 'login' and mode == 'mobile':
-        step, mobile, otp = request.data.get('step', 'send_otp'), request.data.get('mobile'), request.data.get('otp')
-        if not mobile: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-        if step == 'send_otp':
-            u, _ = AppUser.objects.get_or_create(phone=mobile)
-            state, _ = UserState.objects.get_or_create(user=u)
-            state.otp, u.is_verified = generate_otp(), False
-            state.save(); u.save()
-            print(f"OTP to {mobile}: {state.otp}")
-            return api_response(None, RM.user.OTP_SENT_MOBILE, 200)
+        step, mobile = request.data.get('step', 'send_otp'), request.data.get('mobile')
+
+        # Ensure mobile number is provided
+        if not mobile:
+            return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+
+        # Step to verify OTP (Frontend handles OTP process, backend just updates status)
         if step == 'verify_otp':
-            try: u = AppUser.objects.get(phone=mobile)
-            except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
-            state = getattr(u, 'state', None)
-            if not state or str(state.otp) != str(otp):
-                return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-            u.is_verified, state.otp = True, None
-            u.save(); state.save()
+            # Check if the user exists by phone number
+            try:
+                u = AppUser.objects.get(phone=mobile)
+            except AppUser.DoesNotExist:
+                return api_response(None, RM.common.NOT_FOUND, 404)
+
+            # Assuming OTP verification has already been done on the frontend, we just mark user as verified
+            u.is_verified = True
+            u.save()
+
+            # Generate and return tokens (assuming your `generate_tokens` function is correct)
             return api_response(generate_tokens(u, AppUserSerializer), RM.user.MOBILE_LOGIN_SUCCESS, 200)
 
     if action == 'signup' and mode == 'email':
@@ -126,23 +128,29 @@ def auth_handler(request):
             return api_response(None, RM.user.PASSWORD_SET_SUCCESS, 200)
 
     if action == 'signup' and mode == 'mobile':
-        step, mobile, otp = request.data.get('step', 'send_otp'), request.data.get('mobile'), request.data.get('otp')
-        if not mobile: return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-        if step == 'send_otp':
-            u, _ = AppUser.objects.get_or_create(phone=mobile)
-            state, _ = UserState.objects.get_or_create(user=u)
-            state.otp, u.is_verified = generate_otp(), False
-            state.save(); u.save()
-            print(f"OTP to {mobile}: {state.otp}")
-            return api_response(None, RM.user.OTP_SENT_MOBILE, 200)
-        if step == 'verify_otp':
-            try: u = AppUser.objects.get(phone=mobile)
-            except AppUser.DoesNotExist: return api_response(None, RM.common.NOT_FOUND, 404)
-            state = getattr(u, 'state', None)
-            if not state or str(state.otp) != str(otp): 
-                return api_response(None, RM.common.REQUIRED_FIELDS, 400)
-            u.is_verified, state.otp = True, None
-            u.save(); state.save()
+        step, mobile = request.data.get('step', 'send_otp'), request.data.get('mobile')
+
+        # Ensure mobile number is provided
+        if not mobile:
+            return api_response(None, RM.common.REQUIRED_FIELDS, 400)
+
+        # Step to verify OTP (Firebase handles OTP process on the frontend)
+        if step == 'verify_user':
+            # Check if the user already exists by mobile number
+            u, created = AppUser.objects.get_or_create(phone=mobile)
+
+            # If user is newly created, initialize additional information (if needed)
+            if created:
+                # Optionally, initialize other fields when the user is created (e.g., user state, profile)
+                state, _ = UserState.objects.get_or_create(user=u)
+                state.is_verified = True  # Mark new user as verified immediately after frontend OTP verification
+                state.save()
+
+            # Update the user as verified (regardless of whether they are newly created or not)
+            u.is_verified = True
+            u.save()
+
+            # Return success response indicating user is verified
             return api_response(None, RM.user.MOBILE_VERIFIED, 200)
 
     if action == 'logout':
