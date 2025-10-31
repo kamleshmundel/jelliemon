@@ -89,7 +89,7 @@ def lessons_view(request):
         includesUnitsQue = request.GET.get('includesUnitsQue') == 'true'
         user = request.user
 
-        qs = Lesson.objects.select_related('subject').prefetch_related('units__parts').all().order_by('id')
+        qs = Lesson.objects.select_related('subject').prefetch_related('units__parts').all().order_by('title')
         if subject_id:
             qs = qs.filter(subject_id=subject_id)
 
@@ -175,7 +175,7 @@ def units_view(request):
         lesson_id = request.GET.get('lessonId')
         include_questions = request.GET.get('includeQuestions')
 
-        qs = Unit.objects.select_related('lesson').prefetch_related('parts').all().order_by('id')
+        qs = Unit.objects.select_related('lesson').prefetch_related('parts').all().order_by('title')
         if unit_id:
             qs = qs.filter(id=unit_id)
         elif lesson_id:
@@ -403,6 +403,36 @@ def badges_view(request):
         return api_response(None, RM.common.SUCCESS, status.HTTP_200_OK)
 
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def next_view(request):
+#     if request.method == 'GET':
+#         lesson_id, unit_id = request.GET.get('lessonId'), request.GET.get('unitId')
+#         if not lesson_id or not unit_id:
+#             return api_response(None, RM.common.REQUIRED_FIELDS, status=status.HTTP_400_BAD_REQUEST)
+#         try:
+#             lesson = Lesson.objects.get(id=lesson_id)
+#         except Lesson.DoesNotExist:
+#             return api_response(None, RM.admin.NO_LESSION, status=status.HTTP_404_NOT_FOUND)
+#         try:
+#             unit = Unit.objects.get(id=unit_id, lesson=lesson)
+#         except Unit.DoesNotExist:
+#             return api_response(None, RM.admin.NO_UNIT, status=status.HTTP_404_NOT_FOUND)
+
+#         next_unit = Unit.objects.filter(lesson=lesson, id__gt=unit.id).order_by('id').first()
+#         if next_unit:
+#             data = {"lessonId": lesson.id, "unitId": next_unit.id}
+#         else:
+#             next_lesson = Lesson.objects.filter(id__gt=lesson.id).order_by('id').first()
+#             if not next_lesson:
+#                 return api_response(None, RM.admin.NO_LESSION_NEXT, status.HTTP_404_NOT_FOUND)
+#             first_unit = Unit.objects.filter(lesson=next_lesson).order_by('id').first()
+#             if not first_unit:
+#                 return api_response(None, RM.admin.NO_UNIT_NEXT, status.HTTP_404_NOT_FOUND)
+#             data = {"lessonId": next_lesson.id, "unitId": first_unit.id}
+
+#         return api_response(data, RM.common.SUCCESS, status.HTTP_200_OK)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def next_view(request):
@@ -419,16 +449,18 @@ def next_view(request):
         except Unit.DoesNotExist:
             return api_response(None, RM.admin.NO_UNIT, status=status.HTTP_404_NOT_FOUND)
 
-        next_unit = Unit.objects.filter(lesson=lesson, id__gt=unit.id).order_by('id').first()
+        next_unit = Unit.objects.filter(lesson=lesson, title__gt=unit.title).order_by('title').first()
         if next_unit:
-            data = {"lessonId": lesson.id, "unitId": next_unit.id}
+            is_last = not Unit.objects.filter(lesson=lesson, title_gt=next_unit.title).exists() and not Lesson.objects.filter(title_gt=lesson.title).exists()
+            data = {"lessonId": lesson.id, "unitId": next_unit.id, "isLast": is_last}
         else:
-            next_lesson = Lesson.objects.filter(id__gt=lesson.id).order_by('id').first()
+            next_lesson = Lesson.objects.filter(title__gt=lesson.title).order_by('title').first()
             if not next_lesson:
-                return api_response(None, RM.admin.NO_LESSION_NEXT, status.HTTP_404_NOT_FOUND)
-            first_unit = Unit.objects.filter(lesson=next_lesson).order_by('id').first()
+                return api_response({"isLast": True}, RM.admin.NO_LESSION_NEXT, status.HTTP_200_OK)
+            first_unit = Unit.objects.filter(lesson=next_lesson).order_by('title').first()
             if not first_unit:
-                return api_response(None, RM.admin.NO_UNIT_NEXT, status.HTTP_404_NOT_FOUND)
-            data = {"lessonId": next_lesson.id, "unitId": first_unit.id}
+                return api_response({"isLast": True}, RM.admin.NO_UNIT_NEXT, status.HTTP_200_OK)
+            is_last = not Unit.objects.filter(lesson=next_lesson, title_gt=first_unit.title).exists() and not Lesson.objects.filter(title_gt=next_lesson.title).exists()
+            data = {"lessonId": next_lesson.id, "unitId": first_unit.id, "isLast": is_last}
 
         return api_response(data, RM.common.SUCCESS, status.HTTP_200_OK)
