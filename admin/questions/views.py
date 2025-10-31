@@ -17,7 +17,7 @@ def questions_view(request):
     if request.method == 'GET':
         que_id = request.GET.get('queId')
         unit_id = request.GET.get('unit_id')
-        qs = Question.objects.select_related('unit').prefetch_related('answers').all().order_by('id')
+        qs = Question.objects.select_related('unit__lesson__subject').prefetch_related('answers').all().order_by('id')
         if unit_id:
             qs = qs.filter(unit_id=unit_id)
         
@@ -36,6 +36,9 @@ def questions_view(request):
                 "unit_id": q.unit.id,
                 "unit_title": q.unit.title,
                 "audio": q.audio.url if q.audio else None,
+                "subject_id":q.unit.lesson.subject.id,
+                "lesson_id":q.unit.lesson.id,
+                "unit_id":q.unit.id,
                 "answers": [
                     {
                         "id": a.id,
