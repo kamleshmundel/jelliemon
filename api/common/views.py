@@ -273,8 +273,7 @@ def units_view(request):
             part_audio_url = request.data.get(audio_key)
 
             if not part_audio and part_audio_url:
-                part_audio = part_audio_url
-
+                part_audio = part_audio_url.replace(settings.MEDIA_URL, "")
             if not part_content:
                 break  # Stop when no more parts are found
             
