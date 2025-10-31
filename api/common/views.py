@@ -453,15 +453,15 @@ def next_view(request):
         next_unit = Unit.objects.filter(lesson=current_lesson, title__gt=current_unit.title).order_by("title").first()
         if next_unit:
             is_last = not Unit.objects.filter(lesson=current_lesson, title__gt=next_unit.title).exists()
-            return api_response({"lesson_id": current_lesson.id, "unit_id": next_unit.id, "is_last": is_last}, "Success", status.HTTP_200_OK)
+            return api_response({"lessonId": current_lesson.id, "unitId": next_unit.id, "isLast": is_last}, RM.common.SUCCESS, status.HTTP_200_OK)
 
         next_lesson = Lesson.objects.filter(title__gt=current_lesson.title).order_by("title").first()
         if not next_lesson:
-            return api_response({"is_last": True}, "No more content", status.HTTP_200_OK)
+            return api_response({"isLast": True}, RM.admin.NO_LESSION_NEXT, status.HTTP_200_OK)
 
         first_unit = Unit.objects.filter(lesson=next_lesson).order_by("title").first()
         if not first_unit:
-            return api_response({"is_last": True}, "No more content", status.HTTP_200_OK)
+            return api_response({"isLast": True}, RM.admin.NO_UNIT_NEXT, status.HTTP_200_OK)
 
         is_last = not Lesson.objects.filter(title__gt=next_lesson.title).exists() and not Unit.objects.filter(lesson=next_lesson, title__gt=first_unit.title).exists()
-        return api_response({"lesson_id": next_lesson.id, "unit_id": first_unit.id, "is_last": is_last}, "Success", status.HTTP_200_OK)
+        return api_response({"lessonId": next_lesson.id, "unitId": first_unit.id, "isLast": is_last}, RM.common.SUCCESS, status.HTTP_200_OK)
