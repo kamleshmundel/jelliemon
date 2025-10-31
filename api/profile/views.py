@@ -66,7 +66,7 @@ def update_profile(request):
     if 'school' in data: info.school = data['school']
     if 'board' in data: info.board = data['board']
     if 'current_class' in data: info.user_class = data['current_class']
-    if 'xp' in data: info.xp = data['xp']
+    if 'xp' in data: info.xp += data['xp']
 
     if 'country' in data:
         try: info.country = Country.objects.get(id=data['country'])
