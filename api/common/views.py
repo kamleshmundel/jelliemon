@@ -270,10 +270,14 @@ def units_view(request):
             part_title = request.data.get(title_key)
             part_content = request.data.get(content_key)
             part_audio = request.FILES.get(audio_key)
+            part_audio_url = request.data.get(audio_key)
+
+            if not part_audio and part_audio_url:
+                part_audio = part_audio_url
 
             if not part_content:
                 break  # Stop when no more parts are found
-
+            
             # Create or update parts
             if part_audio:  # New audio is uploaded
                 part = UnitPart.objects.create(
@@ -287,7 +291,8 @@ def units_view(request):
                 part = UnitPart.objects.create(
                     unit=unit,
                     title=part_title,
-                    content=part_content
+                    content=part_content,
+                    audio=part_audio
                 )
             
             parts.append(part)
