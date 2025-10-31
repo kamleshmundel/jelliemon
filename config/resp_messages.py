@@ -55,6 +55,11 @@ class AdminMessages:
     QUE_ADDED = "Question added successfully."
     NO_QUE = "Question not found."
 
+    # Next Lesson > Unit
+    NO_LESSION_NEXT = "No next lesson found."
+    NO_UNIT_NEXT = "No next unit found."
+    
+
 class UserMessages:
     OTP_SENT_EMAIL = "OTP sent to your email."
     OTP_SENT_MOBILE = "OTP sent to your mobile number."
